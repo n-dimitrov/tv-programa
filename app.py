@@ -9,6 +9,8 @@ from typing import List, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from fetch_active_programs import ActiveChannelFetcher
@@ -49,14 +51,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware for local React development
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS middleware removed - frontend and backend are now served from same origin
 
 # Utility functions
 def build_logo_url(icon_path: str) -> str:
@@ -139,14 +134,7 @@ def get_last_7_days() -> List[str]:
     return [(today - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
 
 # API Endpoints
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {
-        "message": "TV Program Manager API",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+# Note: Root "/" endpoint removed - now serves React frontend at /
 
 @app.get("/api/config")
 async def get_config():
@@ -311,6 +299,27 @@ async def get_status():
         "active_channels": len([ch for ch in load_channels() if ch.get('active', False)])
     }
 
+# Serve React static files and handle SPA routing
+frontend_build_dir = Path("frontend/build")
+if frontend_build_dir.exists():
+    # Mount static files (JS, CSS, images)
+    app.mount("/static", StaticFiles(directory=str(frontend_build_dir / "static")), name="static")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve React frontend for all non-API routes"""
+        # Try to serve the requested file
+        requested_file = frontend_build_dir / full_path
+        if requested_file.exists() and requested_file.is_file():
+            return FileResponse(requested_file)
+
+        # Otherwise serve index.html for React Router
+        index_file = frontend_build_dir / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+
+        raise HTTPException(status_code=404, detail="Not found")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

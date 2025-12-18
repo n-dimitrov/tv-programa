@@ -20,7 +20,7 @@ usage() {
     echo ""
     echo "OPTIONS:"
     echo "  -c, --channel CHANNEL    Channel name (default: bnt)"
-    echo "  -d, --date DATE          Date path (default: Вчера)"
+    echo "  -d, --date DATE          Date path (default: Днес)"
     echo "                           Options: Вчера (yesterday), Днес (today), etc."
     echo "  -i, --install            Install/upgrade dependencies"
     echo "  -h, --help               Show this help message"
@@ -56,7 +56,7 @@ install_deps() {
 # Fetch programs
 fetch_programs() {
     local channel="${1:-bnt}"
-    local date_path="${2:-Вчера}"
+    local date_path="${2:-Днес}"
 
     echo -e "${BLUE}Fetching TV programs...${NC}"
     echo "Channel: $channel | Date: $date_path"
@@ -67,7 +67,7 @@ fetch_programs() {
 
 # Parse command line arguments
 CHANNEL="bnt"
-DATE_PATH="Вчера"
+DATE_PATH="Днес"
 INSTALL_DEPS=false
 
 while [[ $# -gt 0 ]]; do
