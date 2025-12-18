@@ -36,72 +36,68 @@ interface DayPrograms {
 }
 
 function ProgramsView() {
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [programs, setPrograms] = useState<DayPrograms | null>(null);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [allPrograms, setAllPrograms] = useState<{ [date: string]: DayPrograms }>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [dates, setDates] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [logoBaseUrl, setLogoBaseUrl] = useState<string>('');
 
-  // Load config and get last 7 days
+  // Load config, all 7 days of programs at once, and get last 7 days
   useEffect(() => {
-    const loadConfig = async () => {
+    const loadConfigAndPrograms = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/config');
-        if (response.ok) {
-          const data = await response.json();
+        // Load config
+        const configResponse = await fetch('http://localhost:8000/api/config');
+        if (configResponse.ok) {
+          const data = await configResponse.json();
           setLogoBaseUrl(data.logo_base_url || 'https://www.xn----8sbafg9clhjcp.bg');
+        } else {
+          setLogoBaseUrl('https://www.xn----8sbafg9clhjcp.bg');
         }
       } catch (err) {
         console.error('Failed to load config:', err);
-        setLogoBaseUrl('https://www.xn----8sbafg9clhjcp.bg'); // Fallback
+        setLogoBaseUrl('https://www.xn----8sbafg9clhjcp.bg');
       }
-    };
 
-    loadConfig();
+      // Generate dates
+      const today = new Date();
+      const last7Days: string[] = [];
 
-    const today = new Date();
-    const last7Days: string[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        last7Days.push(date.toISOString().split('T')[0]);
+      }
 
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      last7Days.push(date.toISOString().split('T')[0]);
-    }
+      setDates(last7Days);
+      if (last7Days.length > 0) {
+        setSelectedDates([last7Days[last7Days.length - 1]]); // Default to today
+      }
 
-    setDates(last7Days);
-    if (last7Days.length > 0) {
-      setSelectedDate(last7Days[last7Days.length - 1]); // Default to today
-    }
-  }, []);
-
-  // Load programs for selected date
-  useEffect(() => {
-    if (!selectedDate) return;
-
-    const loadPrograms = async () => {
+      // Load all programs at once
       setLoading(true);
       setError(null);
 
       try {
-        const response = await fetch(`http://localhost:8000/api/programs?date=${selectedDate}`);
+        const response = await fetch('http://localhost:8000/api/programs/7days');
 
         if (!response.ok) {
-          throw new Error('No programs found for this date');
+          throw new Error('No programs found');
         }
 
         const data = await response.json();
-        setPrograms(data);
+        setAllPrograms(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load programs');
-        setPrograms(null);
+        setAllPrograms({});
       } finally {
         setLoading(false);
       }
     };
 
-    loadPrograms();
-  }, [selectedDate]);
+    loadConfigAndPrograms();
+  }, []);
 
   const formatDateDisplay = (dateStr: string): string => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -113,33 +109,77 @@ function ProgramsView() {
     return date.toLocaleDateString('en-US', options);
   };
 
+  const sortProgramsByTimeDescending = (programs: Program[]): Program[] => {
+    return [...programs].sort((a, b) => {
+      const timeA = a.time.split(':').map(Number);
+      const timeB = b.time.split(':').map(Number);
+      const minutesA = timeA[0] * 60 + timeA[1];
+      const minutesB = timeB[0] * 60 + timeB[1];
+      return minutesB - minutesA; // Descending order
+    });
+  };
+
+  const toggleDateFilter = (date: string) => {
+    setSelectedDates(prev =>
+      prev.includes(date)
+        ? prev.filter(d => d !== date)
+        : [...prev, date].sort()
+    );
+  };
+
+  const getCombinedChannelPrograms = () => {
+    const combinedData: { [channelId: string]: { channel: any; programs: { date: string; programs: Program[] }[] } } = {};
+
+    // Sort selected dates in descending order (most recent first)
+    const sortedDates = [...selectedDates].sort().reverse();
+
+    sortedDates.forEach(date => {
+      if (allPrograms[date]) {
+        Object.entries(allPrograms[date].programs).forEach(([channelId, channelData]) => {
+          if (!combinedData[channelId]) {
+            combinedData[channelId] = {
+              channel: channelData.channel,
+              programs: []
+            };
+          }
+          combinedData[channelId].programs.push({
+            date: date,
+            programs: channelData.programs
+          });
+        });
+      }
+    });
+
+    return combinedData;
+  };
+
   return (
     <div className="programs-view">
       <div className="date-tabs">
         {dates.map(date => (
           <button
             key={date}
-            className={`date-tab ${selectedDate === date ? 'active' : ''}`}
-            onClick={() => setSelectedDate(date)}
+            className={`date-tab ${selectedDates.includes(date) ? 'active' : ''}`}
+            onClick={() => toggleDateFilter(date)}
           >
             {formatDateDisplay(date)}
           </button>
         ))}
       </div>
 
-      {loading && <div className="loading">Loading programs...</div>}
+      {loading && <div className="loading">Loading programs for all 7 days...</div>}
 
       {error && <div className="error-message">{error}</div>}
 
-      {programs && (
+      {selectedDates.length > 0 && (
         <div className="programs-container">
           <div className="programs-header">
-            <h2>Programs for {formatDateDisplay(selectedDate)}</h2>
+            <h2>Programs for {selectedDates.map(d => formatDateDisplay(d)).join(', ')}</h2>
             <div className="programs-meta">
-              <span>{programs.metadata.channels_with_programs} channels</span>
+              <span>{Object.keys(getCombinedChannelPrograms()).length} channels</span>
               <span>
-                {Object.values(programs.programs).reduce(
-                  (sum, ch) => sum + ch.count,
+                {Object.values(getCombinedChannelPrograms()).reduce(
+                  (sum, ch) => sum + ch.programs.reduce((cnt, dp) => cnt + dp.programs.length, 0),
                   0
                 )} programs
               </span>
@@ -147,7 +187,7 @@ function ProgramsView() {
           </div>
 
           <div className="channels-list">
-            {Object.values(programs.programs).map(channelData => (
+            {Object.values(getCombinedChannelPrograms()).map(channelData => (
               <div key={channelData.channel.id} className="channel-card">
                 <div className="channel-header">
                   {channelData.channel.icon && (
@@ -161,19 +201,28 @@ function ProgramsView() {
                     />
                   )}
                   <h3>{channelData.channel.name}</h3>
-                  <span className="program-count">{channelData.count} programs</span>
+                  <span className="program-count">
+                    {channelData.programs.reduce((cnt, dp) => cnt + dp.programs.length, 0)} programs
+                  </span>
                 </div>
 
                 <div className="programs-list">
-                  {channelData.programs.map((program, idx) => (
-                    <div key={idx} className="program-item">
-                      <div className="program-time">{program.time}</div>
-                      <div className="program-details">
-                        <div className="program-title">{program.title}</div>
-                        {program.description && (
-                          <div className="program-description">{program.description}</div>
-                        )}
+                  {channelData.programs.map((datePrograms, dateIdx) => (
+                    <div key={dateIdx}>
+                      <div className="date-section-header">
+                        <span>{formatDateDisplay(datePrograms.date)}</span>
                       </div>
+                      {sortProgramsByTimeDescending(datePrograms.programs).map((program, idx) => (
+                        <div key={idx} className="program-item">
+                          <div className="program-time">{program.time}</div>
+                          <div className="program-details">
+                            <div className="program-title">{program.title}</div>
+                            {program.description && (
+                              <div className="program-description">{program.description}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
@@ -183,10 +232,9 @@ function ProgramsView() {
         </div>
       )}
 
-      {!loading && !error && !programs && (
+      {!loading && !error && selectedDates.length === 0 && (
         <div className="no-programs">
-          <p>No programs found for {formatDateDisplay(selectedDate)}</p>
-          <p>Select a different date or fetch programs using the API</p>
+          <p>Select one or more dates to view programs</p>
         </div>
       )}
     </div>
