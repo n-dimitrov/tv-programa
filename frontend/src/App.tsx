@@ -52,7 +52,7 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <p>TV Program Manager | Last 7 Days Data | Made with React + FastAPI</p>
+        <p>TV Program Manager</p>
       </footer>
     </div>
   );

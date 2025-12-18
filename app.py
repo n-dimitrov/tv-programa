@@ -83,20 +83,10 @@ def save_channels(channels: List[Dict]) -> bool:
     return storage.write_json(CHANNELS_FILE, {'channels': channels})
 
 def cleanup_old_programs() -> None:
-    """Remove program files older than 7 days"""
-    today = datetime.now().date()
-    seven_days_ago = today - timedelta(days=7)
-
-    files = storage.list_files("data/programs")
-    for filename in files:
-        try:
-            file_date = datetime.strptime(filename.split('.')[0], "%Y-%m-%d").date()
-            if file_date < seven_days_ago:
-                file_path = str(DATA_DIR / filename)
-                storage.delete_file(file_path)
-                print(f"Deleted old program file: {filename}")
-        except ValueError:
-            pass
+    """No longer deletes old files - they are kept in storage but not loaded"""
+    # Old files are kept in storage but filtered out when loading data
+    # This function is now a no-op but kept for backward compatibility
+    pass
 
 def get_program_file_path(date: Optional[str] = None) -> Path:
     """Get program file path for a specific date"""
@@ -166,8 +156,8 @@ async def fetch_programs(date_path: str = "Днес"):
         # Save to daily file
         save_programs_for_date(data, target_date.isoformat())
 
-        # Cleanup old programs (> 7 days)
-        cleanup_old_programs()
+        # Note: Old files (> 7 days) are kept in storage but not loaded
+        # No cleanup/deletion is performed
 
         return {
             "status": "success",
@@ -199,12 +189,13 @@ async def get_programs(date: Optional[str] = None):
 @app.get("/api/programs/7days")
 async def get_programs_7days():
     """
-    Get all programs for the last 7 days
+    Get all programs for the last 7 days (only loads recent data)
 
     Returns:
         Dictionary with dates as keys and program data as values
     """
     result = {}
+    # Only load programs from the last 7 days
     for date in get_last_7_days():
         programs = load_programs_for_date(date)
         if programs:
@@ -272,7 +263,7 @@ async def toggle_channel(channel_id: str):
 
 @app.get("/api/status")
 async def get_status():
-    """Get application status"""
+    """Get application status (only checks last 7 days)"""
     dates = get_last_7_days()
     available_dates = []
 
@@ -283,12 +274,18 @@ async def get_status():
             "available": storage.file_exists(file_path)
         })
 
+    # Get all files in storage for info (including old ones)
+    all_files = storage.list_files("data/programs")
+    total_files = len(all_files)
+
     return {
         "status": "running",
         "data_directory": str(DATA_DIR),
         "available_dates": available_dates,
         "total_channels": len(load_channels()),
-        "active_channels": len([ch for ch in load_channels() if ch.get('active', False)])
+        "active_channels": len([ch for ch in load_channels() if ch.get('active', False)]),
+        "total_files_in_storage": total_files,
+        "loaded_files_count": len([d for d in available_dates if d["available"]])
     }
 
 # Serve React static files and handle SPA routing
