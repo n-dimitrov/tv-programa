@@ -18,18 +18,24 @@ class TVProgramFetcher:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         })
 
-    def fetch_programs(self, channel: str = "bnt", date_path: str = "Вчера") -> List[Dict]:
+    def fetch_programs(self, channel: str = "bnt", date_path: str = "Днес") -> List[Dict]:
         """
         Fetch TV programs for a specific channel and date.
 
         Args:
             channel: Channel name (e.g., 'bnt', 'bnt2')
-            date_path: Date path component (e.g., 'Вчера' for yesterday, 'Днес' for today)
+            date_path: Date path component ('Днес' for today - default, 'Вчера' for yesterday, etc.)
+                      For today, URL is just: /tv/{channel}
+                      For other dates: /tv/{channel}/{date_path}/
 
         Returns:
             List of program dictionaries containing time, title, type, and description
         """
-        url = f"{self.BASE_URL}/tv/{channel}/{date_path}/"
+        # For today, don't add date_path to URL (defaults to today)
+        if date_path == "Днес":
+            url = f"{self.BASE_URL}/tv/{channel}"
+        else:
+            url = f"{self.BASE_URL}/tv/{channel}/{date_path}/"
 
         try:
             response = self.session.get(url, timeout=10)
