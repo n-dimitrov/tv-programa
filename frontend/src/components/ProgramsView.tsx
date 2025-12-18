@@ -44,6 +44,7 @@ function ProgramsView() {
   const [logoBaseUrl, setLogoBaseUrl] = useState<string>('');
   const [hiddenChannels, setHiddenChannels] = useState<Set<string>>(new Set());
   const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Load config, all 7 days of programs at once, and get last 7 days
   useEffect(() => {
@@ -160,6 +161,15 @@ function ProgramsView() {
     return !!allPrograms[date];
   };
 
+  const filterProgramsBySearch = (programs: Program[]): Program[] => {
+    if (!searchTerm.trim()) return programs;
+    const searchLower = searchTerm.toLowerCase();
+    return programs.filter(program =>
+      program.title.toLowerCase().includes(searchLower) ||
+      (program.description && program.description.toLowerCase().includes(searchLower))
+    );
+  };
+
   const getCombinedChannelPrograms = () => {
     const combinedData: { [channelId: string]: { channel: any; programs: { date: string; programs: Program[] }[] } } = {};
 
@@ -175,19 +185,38 @@ function ProgramsView() {
               programs: []
             };
           }
-          combinedData[channelId].programs.push({
-            date: date,
-            programs: channelData.programs
-          });
+          const filteredPrograms = filterProgramsBySearch(channelData.programs);
+          if (filteredPrograms.length > 0) {
+            combinedData[channelId].programs.push({
+              date: date,
+              programs: filteredPrograms
+            });
+          }
         });
       }
     });
 
-    return combinedData;
+    // Remove channels with no programs after search filtering
+    return Object.entries(combinedData)
+      .filter(([_, channelData]) => channelData.programs.length > 0)
+      .reduce((acc, [channelId, channelData]) => {
+        acc[channelId] = channelData;
+        return acc;
+      }, {} as typeof combinedData);
   };
 
   return (
     <div className="programs-view">
+      <div className="search-container">
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Search programs..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
       <div className="filter-container">
         <div className="filter-section">
           <button
