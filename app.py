@@ -20,7 +20,7 @@ from fetch_tv_program import TVProgramFetcher
 DATA_DIR = Path("data/programs")
 BASE_URL = TVProgramFetcher.BASE_URL
 DATA_DIR.mkdir(parents=True, exist_ok=True)
-CHANNELS_FILE = "tv_channels.json"
+CHANNELS_FILE = "data/tv_channels.json"
 
 # Pydantic models
 class Channel(BaseModel):

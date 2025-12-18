@@ -14,7 +14,7 @@ from fetch_tv_program import TVProgramFetcher
 class ActiveChannelFetcher:
     """Fetches TV programs for all active channels"""
 
-    def __init__(self, channels_file: str = 'tv_channels.json'):
+    def __init__(self, channels_file: str = 'data/tv_channels.json'):
         self.channels_file = channels_file
         self.fetcher = TVProgramFetcher()
         self.channels = self._load_channels()
