@@ -35,13 +35,13 @@ function App() {
           className={`nav-btn ${currentView === 'programs' ? 'active' : ''}`}
           onClick={() => setCurrentView('programs')}
         >
-          Programs (Last 7 Days)
+          Programs
         </button>
         <button
-          className={`nav-btn ${currentView === 'channels' ? 'active' : ''}`}
+          className={`nav-btn nav-btn-right ${currentView === 'channels' ? 'active' : ''}`}
           onClick={() => setCurrentView('channels')}
         >
-          Manage Channels
+          Channels
         </button>
       </nav>
 

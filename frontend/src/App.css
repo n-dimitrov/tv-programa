@@ -53,6 +53,8 @@
   border-bottom: 1px solid #ddd;
   padding: 10px;
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 10px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
@@ -77,6 +79,10 @@
   border-bottom-color: #667eea;
   color: #667eea;
   font-weight: bold;
+}
+
+.nav-btn-right {
+  margin-left: auto;
 }
 
 .app-main {

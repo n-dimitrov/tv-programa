@@ -42,6 +42,8 @@ function ProgramsView() {
   const [dates, setDates] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [logoBaseUrl, setLogoBaseUrl] = useState<string>('');
+  const [hiddenChannels, setHiddenChannels] = useState<Set<string>>(new Set());
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
 
   // Load config, all 7 days of programs at once, and get last 7 days
   useEffect(() => {
@@ -72,7 +74,7 @@ function ProgramsView() {
 
       setDates(last7Days);
       if (last7Days.length > 0) {
-        setSelectedDates([last7Days[last7Days.length - 1]]); // Default to today
+        setSelectedDates(last7Days); // Default to all 7 days
       }
 
       // Load all programs at once
@@ -127,6 +129,37 @@ function ProgramsView() {
     );
   };
 
+  const toggleChannel = (channelId: string) => {
+    setHiddenChannels(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(channelId)) {
+        newSet.delete(channelId);
+      } else {
+        newSet.add(channelId);
+      }
+      return newSet;
+    });
+  };
+
+  const isChannelHidden = (channelId: string): boolean => {
+    return hiddenChannels.has(channelId);
+  };
+
+  const selectAllChannels = () => {
+    setHiddenChannels(new Set());
+  };
+
+  const unselectAllChannels = () => {
+    const allChannelIds = new Set(
+      Object.values(getCombinedChannelPrograms()).map(ch => ch.channel.id)
+    );
+    setHiddenChannels(allChannelIds);
+  };
+
+  const hasDataForDate = (date: string): boolean => {
+    return !!allPrograms[date];
+  };
+
   const getCombinedChannelPrograms = () => {
     const combinedData: { [channelId: string]: { channel: any; programs: { date: string; programs: Program[] }[] } } = {};
 
@@ -155,16 +188,71 @@ function ProgramsView() {
 
   return (
     <div className="programs-view">
-      <div className="date-tabs">
-        {dates.map(date => (
+      <div className="filter-container">
+        <div className="filter-section">
           <button
-            key={date}
-            className={`date-tab ${selectedDates.includes(date) ? 'active' : ''}`}
-            onClick={() => toggleDateFilter(date)}
+            className="filter-header"
+            onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
           >
-            {formatDateDisplay(date)}
+            <span className={`expand-icon ${isFiltersExpanded ? 'expanded' : ''}`}>▼</span>
+            <h3>Filters</h3>
           </button>
-        ))}
+          {isFiltersExpanded && (
+            <div className="filter-content">
+              {/* Date Filter */}
+              <div className="filter-group">
+                <h4>Filter by Date</h4>
+                <div className="date-tabs">
+                  {dates.map(date => (
+                    <button
+                      key={date}
+                      className={`date-tab ${selectedDates.includes(date) ? 'active' : ''} ${!hasDataForDate(date) ? 'no-data' : ''}`}
+                      onClick={() => toggleDateFilter(date)}
+                      disabled={!hasDataForDate(date)}
+                    >
+                      {formatDateDisplay(date)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Channel Selection */}
+              {selectedDates.length > 0 && (
+                <div className="filter-group">
+                  <h4>Select Channels</h4>
+                  <div className="channel-selector">
+                    <div className="selector-controls">
+                      <button className="select-all-btn" onClick={selectAllChannels}>
+                        Select All
+                      </button>
+                      <button className="unselect-all-btn" onClick={unselectAllChannels}>
+                        Unselect All
+                      </button>
+                    </div>
+                    {Object.values(getCombinedChannelPrograms()).map(channelData => (
+                      <button
+                        key={channelData.channel.id}
+                        className={`channel-toggle-btn ${isChannelHidden(channelData.channel.id) ? 'hidden' : 'visible'}`}
+                        onClick={() => toggleChannel(channelData.channel.id)}
+                        title={channelData.channel.name}
+                      >
+                        {channelData.channel.icon && (
+                          <img
+                            src={`${logoBaseUrl}${channelData.channel.icon}`}
+                            alt={channelData.channel.name}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {loading && <div className="loading">Loading programs for all 7 days...</div>}
@@ -173,21 +261,11 @@ function ProgramsView() {
 
       {selectedDates.length > 0 && (
         <div className="programs-container">
-          <div className="programs-header">
-            <h2>Programs for {selectedDates.map(d => formatDateDisplay(d)).join(', ')}</h2>
-            <div className="programs-meta">
-              <span>{Object.keys(getCombinedChannelPrograms()).length} channels</span>
-              <span>
-                {Object.values(getCombinedChannelPrograms()).reduce(
-                  (sum, ch) => sum + ch.programs.reduce((cnt, dp) => cnt + dp.programs.length, 0),
-                  0
-                )} programs
-              </span>
-            </div>
-          </div>
 
           <div className="channels-list">
-            {Object.values(getCombinedChannelPrograms()).map(channelData => (
+            {Object.values(getCombinedChannelPrograms())
+              .filter(ch => !isChannelHidden(ch.channel.id))
+              .map(channelData => (
               <div key={channelData.channel.id} className="channel-card">
                 <div className="channel-header">
                   {channelData.channel.icon && (
