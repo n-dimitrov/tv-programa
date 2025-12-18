@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ChannelManager.css';
+import { API_URL } from '../config';
 
 interface Channel {
   id: string;
@@ -24,7 +25,7 @@ function ChannelManager() {
 
   const loadConfig = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/config');
+      const response = await fetch(`${API_URL}/api/config`);
       if (response.ok) {
         const data = await response.json();
         setLogoBaseUrl(data.logo_base_url || 'https://www.xn----8sbafg9clhjcp.bg');
@@ -40,7 +41,7 @@ function ChannelManager() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/channels');
+      const response = await fetch(`${API_URL}/api/channels`);
 
       if (!response.ok) {
         throw new Error('Failed to load channels');
@@ -62,7 +63,7 @@ function ChannelManager() {
     setChannels(updatedChannels);
 
     try {
-      const response = await fetch(`http://localhost:8000/api/channels/${channelId}/toggle`, {
+      const response = await fetch(`${API_URL}/api/channels/${channelId}/toggle`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -90,7 +91,7 @@ function ChannelManager() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/channels', {
+      const response = await fetch(`${API_URL}/api/channels`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import ProgramsView from './components/ProgramsView';
 import ChannelManager from './components/ChannelManager';
+import { API_URL } from './config';
 
 type ViewType = 'programs' | 'channels';
 
@@ -11,7 +12,7 @@ function App() {
 
   useEffect(() => {
     // Check if API is running
-    fetch('http://localhost:8000/')
+    fetch(`${API_URL}/`)
       .then(res => {
         if (res.ok) setApiStatus('running');
         else setApiStatus('error');

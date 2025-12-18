@@ -1,39 +1,36 @@
-# Build stage - create React bundle
-FROM node:18-alpine AS frontend-build
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm ci --only=production
-COPY frontend/src ./src
-COPY frontend/public ./public
-COPY frontend/tsconfig.json ./
-RUN npm run build
-
-# Runtime stage
+# Use lightweight Python image
 FROM python:3.12-slim
+
+# Set working directory
 WORKDIR /app
 
-# Install dependencies
+# Install system dependencies (minimal)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir google-cloud-storage
+
+# Copy application code
 COPY app.py .
-COPY fetch_*.py .
-COPY tv_channels.json .
+COPY storage.py .
+COPY fetch_tv_program.py .
+COPY fetch_active_programs.py .
 
-# Copy React build from frontend stage
-COPY --from=frontend-build /app/frontend/build ./frontend/build
+# Copy data
+COPY data ./data
 
-# Create data directory
-RUN mkdir -p data/programs
+# Copy frontend build
+COPY frontend/build ./frontend/build
 
-# Set environment variables
-ENV PORT=8000
-ENV PYTHONUNBUFFERED=1
+# Cloud Run sets PORT env var, we listen on this port
+ENV PORT=8080
+ENV ENVIRONMENT=cloud
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/status')" || exit 1
-
-# Run the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application (use sh -c to ensure env var substitution)
+CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT}"]

@@ -15,12 +15,16 @@ from pydantic import BaseModel
 
 from fetch_active_programs import ActiveChannelFetcher
 from fetch_tv_program import TVProgramFetcher
+from storage import get_storage_provider
 
 # Configuration
 DATA_DIR = Path("data/programs")
 BASE_URL = TVProgramFetcher.BASE_URL
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 CHANNELS_FILE = "data/tv_channels.json"
+
+# Initialize storage provider (local or cloud)
+storage = get_storage_provider()
 
 # Pydantic models
 class Channel(BaseModel):
@@ -51,7 +55,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware removed - frontend and backend are now served from same origin
+# CORS middleware - allow requests from frontend during development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify exact origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Utility functions
 def build_logo_url(icon_path: str) -> str:
@@ -62,35 +73,28 @@ def build_logo_url(icon_path: str) -> str:
 
 def load_channels() -> List[Dict]:
     """Load channels from tv_channels.json"""
-    try:
-        with open(CHANNELS_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            return data.get('channels', [])
-    except Exception as e:
-        print(f"Error loading channels: {e}")
-        return []
+    data = storage.read_json(CHANNELS_FILE)
+    if data:
+        return data.get('channels', [])
+    return []
 
 def save_channels(channels: List[Dict]) -> bool:
     """Save channels to tv_channels.json"""
-    try:
-        with open(CHANNELS_FILE, 'w', encoding='utf-8') as f:
-            json.dump({'channels': channels}, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        print(f"Error saving channels: {e}")
-        return False
+    return storage.write_json(CHANNELS_FILE, {'channels': channels})
 
 def cleanup_old_programs() -> None:
     """Remove program files older than 7 days"""
     today = datetime.now().date()
     seven_days_ago = today - timedelta(days=7)
 
-    for file in DATA_DIR.glob("*.json"):
+    files = storage.list_files("data/programs")
+    for filename in files:
         try:
-            file_date = datetime.strptime(file.stem, "%Y-%m-%d").date()
+            file_date = datetime.strptime(filename.split('.')[0], "%Y-%m-%d").date()
             if file_date < seven_days_ago:
-                file.unlink()
-                print(f"Deleted old program file: {file.name}")
+                file_path = str(DATA_DIR / filename)
+                storage.delete_file(file_path)
+                print(f"Deleted old program file: {filename}")
         except ValueError:
             pass
 
@@ -105,28 +109,16 @@ def get_program_file_path(date: Optional[str] = None) -> Path:
 
 def save_programs_for_date(programs_data: Dict, date: Optional[str] = None) -> bool:
     """Save programs for a specific date"""
-    file_path = get_program_file_path(date)
-    try:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(programs_data, f, ensure_ascii=False, indent=2)
+    file_path = str(get_program_file_path(date))
+    success = storage.write_json(file_path, programs_data)
+    if success:
         print(f"Saved programs to {file_path}")
-        return True
-    except Exception as e:
-        print(f"Error saving programs: {e}")
-        return False
+    return success
 
 def load_programs_for_date(date: str) -> Optional[Dict]:
     """Load programs for a specific date"""
-    file_path = get_program_file_path(date)
-    if not file_path.exists():
-        return None
-
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading programs: {e}")
-        return None
+    file_path = str(get_program_file_path(date))
+    return storage.read_json(file_path)
 
 def get_last_7_days() -> List[str]:
     """Get dates for the last 7 days (including today)"""
@@ -285,10 +277,10 @@ async def get_status():
     available_dates = []
 
     for date in dates:
-        file_path = get_program_file_path(date)
+        file_path = str(get_program_file_path(date))
         available_dates.append({
             "date": date,
-            "available": file_path.exists()
+            "available": storage.file_exists(file_path)
         })
 
     return {

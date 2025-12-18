@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ProgramsView.css';
+import { API_URL } from '../config';
 
 interface Program {
   time: string;
@@ -51,7 +52,7 @@ function ProgramsView() {
     const loadConfigAndPrograms = async () => {
       try {
         // Load config
-        const configResponse = await fetch('http://localhost:8000/api/config');
+        const configResponse = await fetch(`${API_URL}/api/config`);
         if (configResponse.ok) {
           const data = await configResponse.json();
           setLogoBaseUrl(data.logo_base_url || 'https://www.xn----8sbafg9clhjcp.bg');
@@ -83,7 +84,7 @@ function ProgramsView() {
       setError(null);
 
       try {
-        const response = await fetch('http://localhost:8000/api/programs/7days');
+        const response = await fetch(`${API_URL}/api/programs/7days`);
 
         if (!response.ok) {
           throw new Error('No programs found');
