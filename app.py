@@ -41,6 +41,7 @@ class Program(BaseModel):
     title: str
     description: Optional[str] = None
     full: Optional[str] = None
+    oscar: Optional[Dict[str, object]] = None
 
 class ChannelPrograms(BaseModel):
     channel_id: str

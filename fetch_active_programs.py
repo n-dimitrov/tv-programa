@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 from typing import List, Dict
 from fetch_tv_program import TVProgramFetcher
+from oscars_lookup import OscarLookup
 
 
 class ActiveChannelFetcher:
@@ -17,6 +18,7 @@ class ActiveChannelFetcher:
     def __init__(self, channels_file: str = 'data/tv_channels.json'):
         self.channels_file = channels_file
         self.fetcher = TVProgramFetcher()
+        self.oscar_lookup = OscarLookup()
         self.channels = self._load_channels()
 
     def _load_channels(self) -> List[Dict]:
@@ -70,6 +72,10 @@ class ActiveChannelFetcher:
             print(f"[{idx}/{len(self.channels)}] Fetching {channel_name}...", end=" ")
 
             programs = self.fetcher.fetch_programs(channel=channel_id, date_path=date_path)
+
+            if programs and self.oscar_lookup.enabled:
+                for program in programs:
+                    self.oscar_lookup.annotate_program(program)
 
             if programs:
                 result['programs'][channel_id] = {

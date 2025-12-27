@@ -177,6 +177,7 @@ class TVProgramFetcher:
 if __name__ == '__main__':
     import sys
     import json
+    from oscars_lookup import OscarLookup
 
     # Parse command line arguments
     channel = sys.argv[1] if len(sys.argv) > 1 else 'bnt'
@@ -185,6 +186,11 @@ if __name__ == '__main__':
     # Create fetcher and get programs
     fetcher = TVProgramFetcher()
     programs = fetcher.fetch_programs(channel=channel, date_path=date_path)
+
+    oscar_lookup = OscarLookup()
+    if programs and oscar_lookup.enabled:
+        for program in programs:
+            oscar_lookup.annotate_program(program)
 
     # Print results
     print(f"Fetched {len(programs)} programs")
@@ -195,4 +201,3 @@ if __name__ == '__main__':
         with open('tv_programs.json', 'w', encoding='utf-8') as f:
             json.dump(programs, f, ensure_ascii=False, indent=2)
         print("\nPrograms saved to tv_programs.json")
-

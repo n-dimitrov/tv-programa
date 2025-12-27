@@ -7,13 +7,15 @@ interface Program {
   title: string;
   description?: string;
   full?: string;
-}
-
-interface ChannelData {
-  channel_id: string;
-  channel_name: string;
-  icon: string;
-  programs: Program[];
+  oscar?: {
+    winner: number;
+    nominee: number;
+    winner_categories: string[];
+    nominee_categories: string[];
+    title_en?: string;
+    poster_path?: string;
+    overview?: string;
+  };
 }
 
 interface DayPrograms {
@@ -37,6 +39,7 @@ interface DayPrograms {
 }
 
 function ProgramsView() {
+  const TMDB_POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w342';
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [allPrograms, setAllPrograms] = useState<{ [date: string]: DayPrograms }>({});
   const [loading, setLoading] = useState<boolean>(false);
@@ -46,6 +49,8 @@ function ProgramsView() {
   const [hiddenChannels, setHiddenChannels] = useState<Set<string>>(new Set());
   const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showOscarOnly, setShowOscarOnly] = useState<boolean>(false);
+  const [oscarModalProgram, setOscarModalProgram] = useState<Program | null>(null);
 
   // Load config, all 7 days of programs at once, and get last 7 days
   useEffect(() => {
@@ -162,10 +167,17 @@ function ProgramsView() {
     return !!allPrograms[date];
   };
 
-  const filterProgramsBySearch = (programs: Program[]): Program[] => {
-    if (!searchTerm.trim()) return programs;
+  const filterPrograms = (programs: Program[]): Program[] => {
+    let filtered = programs;
+
+    if (showOscarOnly) {
+      filtered = filtered.filter(program => program.oscar);
+    }
+
+    if (!searchTerm.trim()) return filtered;
+
     const searchLower = searchTerm.toLowerCase();
-    return programs.filter(program =>
+    return filtered.filter(program =>
       program.title.toLowerCase().includes(searchLower) ||
       (program.description && program.description.toLowerCase().includes(searchLower))
     );
@@ -186,7 +198,7 @@ function ProgramsView() {
               programs: []
             };
           }
-          const filteredPrograms = filterProgramsBySearch(channelData.programs);
+          const filteredPrograms = filterPrograms(channelData.programs);
           if (filteredPrograms.length > 0) {
             combinedData[channelId].programs.push({
               date: date,
@@ -280,6 +292,18 @@ function ProgramsView() {
                   </div>
                 </div>
               )}
+
+              <div className="filter-group">
+                <h4>Oscar Filter</h4>
+                <label className="oscar-filter">
+                  <input
+                    type="checkbox"
+                    checked={showOscarOnly}
+                    onChange={(e) => setShowOscarOnly(e.target.checked)}
+                  />
+                  Only Oscar
+                </label>
+              </div>
             </div>
           )}
         </div>
@@ -322,9 +346,26 @@ function ProgramsView() {
                       </div>
                       {sortProgramsByTimeDescending(datePrograms.programs).map((program, idx) => (
                         <div key={idx} className="program-item">
-                          <div className="program-time">{program.time}</div>
+                          <div className={`program-time ${program.oscar ? 'program-time-oscar' : ''}`}>
+                            {program.time}
+                          </div>
                           <div className="program-details">
-                            <div className="program-title">{program.title}</div>
+                            <div className="program-title">
+                              {program.title}
+                              {program.oscar && (
+                                <button
+                                  type="button"
+                                  className="oscar-badge"
+                                  onClick={() => setOscarModalProgram(program)}
+                                  aria-label={`View Oscar details for ${program.title}`}
+                                >
+                                  Oscar {program.oscar.winner}W / {program.oscar.nominee}N
+                                </button>
+                              )}
+                            </div>
+                            {program.oscar?.title_en && (
+                              <div className="program-subtitle">{program.oscar.title_en}</div>
+                            )}
                             {program.description && (
                               <div className="program-description">{program.description}</div>
                             )}
@@ -343,6 +384,75 @@ function ProgramsView() {
       {!loading && !error && selectedDates.length === 0 && (
         <div className="no-programs">
           <p>Select one or more dates to view programs</p>
+        </div>
+      )}
+
+      {oscarModalProgram?.oscar && (
+        <div
+          className="oscar-modal-overlay"
+          onClick={() => setOscarModalProgram(null)}
+        >
+          <div
+            className="oscar-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="oscar-modal-close"
+              onClick={() => setOscarModalProgram(null)}
+              aria-label="Close Oscar details"
+            >
+              Close
+            </button>
+            <div className="oscar-modal-content">
+              {oscarModalProgram.oscar.poster_path && (
+                <img
+                  className="oscar-poster"
+                  src={`${TMDB_POSTER_BASE_URL}${oscarModalProgram.oscar.poster_path}`}
+                  alt={oscarModalProgram.oscar.title_en || oscarModalProgram.title}
+                />
+              )}
+              <div className="oscar-details">
+                <h3>{oscarModalProgram.title}</h3>
+                {oscarModalProgram.oscar.title_en && (
+                  <div className="oscar-title-en">{oscarModalProgram.oscar.title_en}</div>
+                )}
+                {oscarModalProgram.oscar.overview && (
+                  <p className="oscar-overview">{oscarModalProgram.oscar.overview}</p>
+                )}
+                <div className="oscar-category-group">
+                  <h4>Winning Categories</h4>
+                  {oscarModalProgram.oscar.winner_categories.length ? (
+                    <div className="oscar-category-list">
+                      {oscarModalProgram.oscar.winner_categories.map((cat) => (
+                        <span key={cat} className="oscar-category oscar-winner">
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="oscar-category-empty">None</div>
+                  )}
+                </div>
+                <div className="oscar-category-group">
+                  <h4>Nomination Categories</h4>
+                  {oscarModalProgram.oscar.nominee_categories.length ? (
+                    <div className="oscar-category-list">
+                      {oscarModalProgram.oscar.nominee_categories.map((cat) => (
+                        <span key={cat} className="oscar-category oscar-nominee">
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="oscar-category-empty">None</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
