@@ -46,6 +46,14 @@
   scroll-snap-type: x mandatory;
 }
 
+.oscar-strip-scroll.compact {
+  justify-content: center;
+  overflow-x: visible;
+  scroll-snap-type: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .oscar-strip-scroll::-webkit-scrollbar {
   height: 6px;
 }

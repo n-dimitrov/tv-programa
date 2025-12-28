@@ -60,6 +60,7 @@ function ProgramsView() {
   const [oscarModalProgram, setOscarModalProgram] = useState<Program | null>(null);
   const [activePosterIndex, setActivePosterIndex] = useState<number>(0);
   const [lastInteractionTs, setLastInteractionTs] = useState<number>(Date.now());
+  const [isPosterOverflowing, setIsPosterOverflowing] = useState<boolean>(true);
   const posterScrollRef = useRef<HTMLDivElement | null>(null);
   const carouselReadyRef = useRef<boolean>(false);
 
@@ -229,11 +230,13 @@ function ProgramsView() {
     const seen = new Set<string>();
     const posters: Program[] = [];
     const sortedDates = [...selectedDates].sort().reverse();
+    const posterFilter = OSCAR_FILTERS[oscarFilterIndex].key;
     sortedDates.forEach(date => {
       if (!allPrograms[date]) return;
       Object.values(allPrograms[date].programs).forEach(channelData => {
         channelData.programs.forEach(program => {
           if (!program.oscar?.poster_path) return;
+          if (!matchesOscarFilter(program, posterFilter)) return;
           const key = program.oscar.title_en || program.title;
           if (seen.has(key)) return;
           seen.add(key);
@@ -280,9 +283,9 @@ function ProgramsView() {
   };
 
   const oscarPosters = getOscarPosterPrograms();
-  const cloneCount = Math.min(4, oscarPosters.length);
-  const prefixClones = oscarPosters.slice(-cloneCount);
-  const suffixClones = oscarPosters.slice(0, cloneCount);
+  const cloneCount = isPosterOverflowing ? Math.min(4, oscarPosters.length) : 0;
+  const prefixClones = cloneCount ? oscarPosters.slice(-cloneCount) : [];
+  const suffixClones = cloneCount ? oscarPosters.slice(0, cloneCount) : [];
   const oscarPostersWithClones = [
     ...prefixClones,
     ...oscarPosters,
@@ -308,10 +311,16 @@ function ProgramsView() {
 
   useEffect(() => {
     if (!oscarPosters.length) return;
-    const startIndex = cloneCount;
-    setActivePosterIndex(startIndex);
     setLastInteractionTs(Date.now());
     carouselReadyRef.current = false;
+
+    if (!isPosterOverflowing) {
+      setActivePosterIndex(0);
+      return;
+    }
+
+    const startIndex = cloneCount;
+    setActivePosterIndex(startIndex);
 
     requestAnimationFrame(() => {
       const container = posterScrollRef.current;
@@ -323,7 +332,7 @@ function ProgramsView() {
       container.scrollTo({ left: targetScrollLeft, behavior: 'auto' });
       carouselReadyRef.current = true;
     });
-  }, [cloneCount, oscarPosters.length]);
+  }, [cloneCount, isPosterOverflowing, oscarPosters.length]);
 
   useEffect(() => {
     const container = posterScrollRef.current;
@@ -335,6 +344,14 @@ function ProgramsView() {
       const posterWidth = posterImg.getBoundingClientRect().width;
       const styles = window.getComputedStyle(container);
       const gap = parseFloat(styles.columnGap || styles.gap || '12');
+      const totalWidth = posterWidth * oscarPosters.length + gap * Math.max(0, oscarPosters.length - 1);
+      const overflow = totalWidth > container.clientWidth + 1;
+      setIsPosterOverflowing(overflow);
+      if (!overflow) {
+        container.style.setProperty('--oscar-edge-pad', '0px');
+        container.scrollTo({ left: 0, behavior: 'auto' });
+        return;
+      }
       const halfSpace = container.clientWidth / 2 - posterWidth / 2;
       const step = posterWidth + gap;
       const leftCount = Math.floor(halfSpace / step);
@@ -360,6 +377,7 @@ function ProgramsView() {
   useEffect(() => {
     if (!posterScrollRef.current) return;
     if (!carouselReadyRef.current) return;
+    if (!isPosterOverflowing) return;
     const poster = posterScrollRef.current.querySelector<HTMLElement>(
       `[data-poster-index="${activePosterIndex}"]`
     );
@@ -400,7 +418,7 @@ function ProgramsView() {
         }
       }
     }
-  }, [activePosterIndex, cloneCount, oscarPosters.length]);
+  }, [activePosterIndex, cloneCount, isPosterOverflowing, oscarPosters.length]);
 
   return (
     <div className="programs-view">
@@ -446,7 +464,10 @@ function ProgramsView() {
               </button>
             </div>
           </div>
-          <div className="oscar-strip-scroll" ref={posterScrollRef}>
+          <div
+            className={`oscar-strip-scroll ${!isPosterOverflowing ? 'compact' : ''}`}
+            ref={posterScrollRef}
+          >
             {oscarPostersWithClones.map((posterMeta) => (
               <button
                 key={`${posterMeta.displayIndex}-${posterMeta.program.oscar?.title_en || posterMeta.program.title}`}
