@@ -157,6 +157,28 @@ async def fetch_programs(date_path: str = "Днес"):
         # Save to daily file
         save_programs_for_date(data, target_date.isoformat())
 
+        oscar_titles = []
+        oscar_winners = 0
+        oscar_total = 0
+        if data.get("programs"):
+            for channel_data in data["programs"].values():
+                for program in channel_data.get("programs", []):
+                    oscar = program.get("oscar")
+                    if not oscar:
+                        continue
+                    oscar_total += 1
+                    if oscar.get("winner", 0) > 0:
+                        oscar_winners += 1
+                    title_en = oscar.get("title_en")
+                    oscar_titles.append(
+                        {
+                            "title": program.get("title"),
+                            "title_en": title_en,
+                            "winner": oscar.get("winner", 0),
+                            "nominee": oscar.get("nominee", 0),
+                        }
+                    )
+
         # Note: Old files (> 7 days) are kept in storage but not loaded
         # No cleanup/deletion is performed
 
@@ -165,7 +187,13 @@ async def fetch_programs(date_path: str = "Днес"):
             "message": f"Fetched programs for {date_path}",
             "date": target_date.isoformat(),
             "channels_with_programs": data['metadata']['channels_with_programs'],
-            "total_channels": data['metadata']['total_channels']
+            "total_channels": data['metadata']['total_channels'],
+            "oscar_summary": {
+                "total_oscar_programs": oscar_total,
+                "winners": oscar_winners,
+                "nominees_only": oscar_total - oscar_winners,
+                "titles": oscar_titles,
+            },
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
