@@ -21,6 +21,7 @@ COPY app.py .
 COPY storage.py .
 COPY fetch_tv_program.py .
 COPY fetch_active_programs.py .
+COPY oscars_lookup.py .
 
 # Copy data
 COPY data ./data
@@ -29,8 +30,7 @@ COPY data ./data
 COPY frontend/build ./frontend/build
 
 # Cloud Run sets PORT env var, we listen on this port
-ENV PORT=8080
 ENV ENVIRONMENT=cloud
 
 # Run the application (use sh -c to ensure env var substitution)
-CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}"]
