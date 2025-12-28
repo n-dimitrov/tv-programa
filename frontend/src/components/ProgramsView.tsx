@@ -346,21 +346,45 @@ function ProgramsView() {
                       </div>
                       {sortProgramsByTimeDescending(datePrograms.programs).map((program, idx) => (
                         <div key={idx} className="program-item">
-                          <div className={`program-time ${program.oscar ? 'program-time-oscar' : ''}`}>
+                          <div
+                            className={`program-time ${
+                              program.oscar?.winner
+                                ? 'program-time-oscar'
+                                : program.oscar?.nominee
+                                  ? 'program-time-oscar-nominee'
+                                  : ''
+                            }`}
+                          >
                             {program.time}
                           </div>
                           <div className="program-details">
                             <div className="program-title">
                               {program.title}
                               {program.oscar && (
-                                <button
-                                  type="button"
-                                  className="oscar-badge"
-                                  onClick={() => setOscarModalProgram(program)}
-                                  aria-label={`View Oscar details for ${program.title}`}
-                                >
-                                  Oscar {program.oscar.winner}W / {program.oscar.nominee}N
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    className={`oscar-badge ${
+                                      program.oscar.winner ? 'oscar-badge-winner' : 'oscar-badge-nominee'
+                                    }`}
+                                    onClick={() => setOscarModalProgram(program)}
+                                    aria-label={`View Oscar details for ${program.title}`}
+                                  >
+                                    Oscar {program.oscar.winner}W / {program.oscar.nominee}N
+                                  </button>
+                                  {(program.oscar.winner_categories.includes('Best Picture') ||
+                                    program.oscar.nominee_categories.includes('Best Picture')) && (
+                                    <span
+                                      className={`oscar-badge oscar-badge-star ${
+                                        program.oscar.winner_categories.includes('Best Picture')
+                                          ? 'oscar-badge-winner'
+                                          : 'oscar-badge-nominee'
+                                      }`}
+                                    >
+                                      ★
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                             {program.oscar?.title_en && (
