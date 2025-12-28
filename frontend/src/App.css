@@ -5,6 +5,15 @@
   background: #f5f5f5;
 }
 
+.app-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .app-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -20,43 +29,16 @@
   justify-content: space-between;
 }
 
-.header-status {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.api-status {
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: bold;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.api-status.running {
-  background: rgba(76, 175, 80, 0.3);
-  border-color: #4CAF50;
-  color: #4CAF50;
-}
-
-.api-status.error,
-.api-status.not-connected {
-  background: rgba(244, 67, 54, 0.3);
-  border-color: #f44336;
-  color: #f44336;
-}
 
 .app-nav {
   background: white;
   border-bottom: 1px solid #ddd;
   padding: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.app-nav .app-container {
+  justify-content: space-between;
 }
 
 .nav-btn {

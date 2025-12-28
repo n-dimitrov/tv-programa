@@ -228,6 +228,14 @@ function ProgramsView() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+        <label className="oscar-filter">
+          <input
+            type="checkbox"
+            checked={showOscarOnly}
+            onChange={(e) => setShowOscarOnly(e.target.checked)}
+          />
+          Oscar
+        </label>
       </div>
 
       <div className="filter-container">
@@ -293,17 +301,6 @@ function ProgramsView() {
                 </div>
               )}
 
-              <div className="filter-group">
-                <h4>Oscar Filter</h4>
-                <label className="oscar-filter">
-                  <input
-                    type="checkbox"
-                    checked={showOscarOnly}
-                    onChange={(e) => setShowOscarOnly(e.target.checked)}
-                  />
-                  Only Oscar
-                </label>
-              </div>
             </div>
           )}
         </div>

@@ -1,49 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './App.css';
 import ProgramsView from './components/ProgramsView';
 import ChannelManager from './components/ChannelManager';
-import { API_URL } from './config';
 
 type ViewType = 'programs' | 'channels';
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewType>('programs');
-  const [apiStatus, setApiStatus] = useState<string>('checking...');
-
-  useEffect(() => {
-    // Check if API is running
-    fetch(`${API_URL}/`)
-      .then(res => {
-        if (res.ok) setApiStatus('running');
-        else setApiStatus('error');
-      })
-      .catch(() => setApiStatus('not connected'));
-  }, []);
 
   return (
     <div className="App">
       <header className="app-header">
-        <h1>📺 TV Program Manager</h1>
-        <div className="header-status">
-          <span className={`api-status ${apiStatus}`}>
-            API: {apiStatus}
-          </span>
+        <div className="app-container">
+          <h1>📺 TV Program Manager</h1>
         </div>
       </header>
 
       <nav className="app-nav">
-        <button
-          className={`nav-btn ${currentView === 'programs' ? 'active' : ''}`}
-          onClick={() => setCurrentView('programs')}
-        >
-          Programs
-        </button>
-        <button
-          className={`nav-btn nav-btn-right ${currentView === 'channels' ? 'active' : ''}`}
-          onClick={() => setCurrentView('channels')}
-        >
-          Channels
-        </button>
+        <div className="app-container">
+          <button
+            className={`nav-btn ${currentView === 'programs' ? 'active' : ''}`}
+            onClick={() => setCurrentView('programs')}
+          >
+            Programs
+          </button>
+          <button
+            className={`nav-btn nav-btn-right ${currentView === 'channels' ? 'active' : ''}`}
+            onClick={() => setCurrentView('channels')}
+          >
+            Channels
+          </button>
+        </div>
       </nav>
 
       <main className="app-main">
