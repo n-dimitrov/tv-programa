@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './ProgramsView.css';
 import { API_URL } from '../config';
 
@@ -51,6 +51,10 @@ function ProgramsView() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showOscarOnly, setShowOscarOnly] = useState<boolean>(false);
   const [oscarModalProgram, setOscarModalProgram] = useState<Program | null>(null);
+  const [activePosterIndex, setActivePosterIndex] = useState<number>(0);
+  const [lastInteractionTs, setLastInteractionTs] = useState<number>(Date.now());
+  const posterScrollRef = useRef<HTMLDivElement | null>(null);
+  const carouselReadyRef = useRef<boolean>(false);
 
   // Load config, all 7 days of programs at once, and get last 7 days
   useEffect(() => {
@@ -199,6 +203,25 @@ function ProgramsView() {
     return count;
   };
 
+  const getOscarPosterPrograms = (): Program[] => {
+    const seen = new Set<string>();
+    const posters: Program[] = [];
+    const sortedDates = [...selectedDates].sort().reverse();
+    sortedDates.forEach(date => {
+      if (!allPrograms[date]) return;
+      Object.values(allPrograms[date].programs).forEach(channelData => {
+        channelData.programs.forEach(program => {
+          if (!program.oscar?.poster_path) return;
+          const key = program.oscar.title_en || program.title;
+          if (seen.has(key)) return;
+          seen.add(key);
+          posters.push(program);
+        });
+      });
+    });
+    return posters;
+  };
+
   const getCombinedChannelPrograms = () => {
     const combinedData: { [channelId: string]: { channel: any; programs: { date: string; programs: Program[] }[] } } = {};
 
@@ -234,8 +257,197 @@ function ProgramsView() {
       }, {} as typeof combinedData);
   };
 
+  const oscarPosters = getOscarPosterPrograms();
+  const cloneCount = Math.min(4, oscarPosters.length);
+  const prefixClones = oscarPosters.slice(-cloneCount);
+  const suffixClones = oscarPosters.slice(0, cloneCount);
+  const oscarPostersWithClones = [
+    ...prefixClones,
+    ...oscarPosters,
+    ...suffixClones
+  ].map((program, index) => ({
+    program,
+    displayIndex: index
+  }));
+  const getRealIndex = (displayIndex: number): number => {
+    if (!oscarPosters.length) return 0;
+    if (displayIndex < cloneCount) {
+      return oscarPosters.length - cloneCount + displayIndex;
+    }
+    if (displayIndex >= cloneCount + oscarPosters.length) {
+      return displayIndex - (cloneCount + oscarPosters.length);
+    }
+    return displayIndex - cloneCount;
+  };
+  const activePosterMeta = oscarPostersWithClones[activePosterIndex];
+  const activePoster = activePosterMeta
+    ? oscarPosters[getRealIndex(activePosterMeta.displayIndex)]
+    : undefined;
+
+  useEffect(() => {
+    if (!oscarPosters.length) return;
+    const startIndex = cloneCount;
+    setActivePosterIndex(startIndex);
+    setLastInteractionTs(Date.now());
+    carouselReadyRef.current = false;
+
+    requestAnimationFrame(() => {
+      const container = posterScrollRef.current;
+      const poster = container?.querySelector<HTMLElement>(
+        `[data-poster-index="${startIndex}"]`
+      );
+      if (!container || !poster) return;
+      const targetScrollLeft = poster.offsetLeft - (container.clientWidth - poster.clientWidth) / 2;
+      container.scrollTo({ left: targetScrollLeft, behavior: 'auto' });
+      carouselReadyRef.current = true;
+    });
+  }, [cloneCount, oscarPosters.length]);
+
+  useEffect(() => {
+    const container = posterScrollRef.current;
+    if (!container || !oscarPosters.length) return;
+
+    const updateEdgePadding = () => {
+      const posterImg = container.querySelector<HTMLImageElement>('img');
+      if (!posterImg) return;
+      const posterWidth = posterImg.getBoundingClientRect().width;
+      const styles = window.getComputedStyle(container);
+      const gap = parseFloat(styles.columnGap || styles.gap || '12');
+      const halfSpace = container.clientWidth / 2 - posterWidth / 2;
+      const step = posterWidth + gap;
+      const leftCount = Math.floor(halfSpace / step);
+      const remainder = halfSpace - leftCount * step;
+      const pad = Math.max(0, remainder - posterWidth / 2);
+      container.style.setProperty('--oscar-edge-pad', `${pad}px`);
+    };
+
+    updateEdgePadding();
+    window.addEventListener('resize', updateEdgePadding);
+    return () => window.removeEventListener('resize', updateEdgePadding);
+  }, [oscarPosters.length]);
+
+  useEffect(() => {
+    if (!oscarPostersWithClones.length) return;
+    const interval = setInterval(() => {
+      if (Date.now() - lastInteractionTs < 10000) return;
+      setActivePosterIndex(prev => (prev + 1) % oscarPostersWithClones.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [oscarPostersWithClones.length, lastInteractionTs]);
+
+  useEffect(() => {
+    if (!posterScrollRef.current) return;
+    if (!carouselReadyRef.current) return;
+    const poster = posterScrollRef.current.querySelector<HTMLElement>(
+      `[data-poster-index="${activePosterIndex}"]`
+    );
+    if (poster) {
+      const container = posterScrollRef.current;
+      const containerWidth = container.clientWidth;
+      const targetScrollLeft = poster.offsetLeft - (containerWidth - poster.clientWidth) / 2;
+      container.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
+      const lastOriginalIndex = cloneCount + oscarPosters.length - 1;
+      if (activePosterIndex > lastOriginalIndex && oscarPosters.length) {
+        const realIndex = activePosterIndex - (cloneCount + oscarPosters.length);
+        const realDisplayIndex = cloneCount + realIndex;
+        const realPoster = container.querySelector<HTMLElement>(
+          `[data-poster-index="${realDisplayIndex}"]`
+        );
+        if (realPoster) {
+          const realTargetScrollLeft =
+            realPoster.offsetLeft - (containerWidth - realPoster.clientWidth) / 2;
+          window.setTimeout(() => {
+            container.scrollTo({ left: realTargetScrollLeft, behavior: 'auto' });
+            setActivePosterIndex(realDisplayIndex);
+          }, 350);
+        }
+      }
+      if (activePosterIndex < cloneCount && oscarPosters.length) {
+        const realIndex = oscarPosters.length - cloneCount + activePosterIndex;
+        const realDisplayIndex = cloneCount + realIndex;
+        const realPoster = container.querySelector<HTMLElement>(
+          `[data-poster-index="${realDisplayIndex}"]`
+        );
+        if (realPoster) {
+          const realTargetScrollLeft =
+            realPoster.offsetLeft - (containerWidth - realPoster.clientWidth) / 2;
+          window.setTimeout(() => {
+            container.scrollTo({ left: realTargetScrollLeft, behavior: 'auto' });
+            setActivePosterIndex(realDisplayIndex);
+          }, 350);
+        }
+      }
+    }
+  }, [activePosterIndex, cloneCount, oscarPosters.length]);
+
   return (
     <div className="programs-view">
+      {oscarPosters.length > 0 && (
+        <div
+          className="oscar-strip"
+          onMouseEnter={() => setLastInteractionTs(Date.now())}
+          onTouchStart={() => setLastInteractionTs(Date.now())}
+        >
+          <div className="oscar-strip-header">
+            <h3>Oscar Picks</h3>
+            <span>{oscarPosters.length}</span>
+          </div>
+          <div className="oscar-strip-scroll" ref={posterScrollRef}>
+            {oscarPostersWithClones.map((posterMeta) => (
+              <button
+                key={`${posterMeta.displayIndex}-${posterMeta.program.oscar?.title_en || posterMeta.program.title}`}
+                className={`oscar-poster-card ${
+                  posterMeta.displayIndex === activePosterIndex ? 'active' : ''
+                }`}
+                type="button"
+                data-poster-index={posterMeta.displayIndex}
+                onClick={() => {
+                  setSearchTerm(posterMeta.program.title);
+                  setActivePosterIndex(posterMeta.displayIndex);
+                  setLastInteractionTs(Date.now());
+                }}
+                aria-label={`Search for ${posterMeta.program.title}`}
+              >
+                <img
+                  src={`${TMDB_POSTER_BASE_URL}${posterMeta.program.oscar?.poster_path}`}
+                  alt={posterMeta.program.oscar?.title_en || posterMeta.program.title}
+                />
+              </button>
+            ))}
+          </div>
+          {activePoster?.oscar && (
+            <div className="oscar-strip-info">
+              <div className="oscar-strip-title">
+                <span>{activePoster.title}</span>
+                {activePoster.oscar.title_en && (
+                  <span className="oscar-strip-title-en">{activePoster.oscar.title_en}</span>
+                )}
+              </div>
+              <div className="oscar-strip-badges">
+                <span
+                  className={`oscar-badge ${
+                    activePoster.oscar.winner ? 'oscar-badge-winner' : 'oscar-badge-nominee'
+                  }`}
+                >
+                  Oscar {activePoster.oscar.winner}W / {activePoster.oscar.nominee}N
+                </span>
+                {(activePoster.oscar.winner_categories.includes('Best Picture') ||
+                  activePoster.oscar.nominee_categories.includes('Best Picture')) && (
+                  <span
+                    className={`oscar-badge oscar-badge-star ${
+                      activePoster.oscar.winner_categories.includes('Best Picture')
+                        ? 'oscar-badge-winner'
+                        : 'oscar-badge-nominee'
+                    }`}
+                  >
+                    ★
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="search-container">
         <input
           type="text"
