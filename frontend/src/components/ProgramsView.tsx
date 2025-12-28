@@ -167,20 +167,36 @@ function ProgramsView() {
     return !!allPrograms[date];
   };
 
-  const filterPrograms = (programs: Program[]): Program[] => {
-    let filtered = programs;
-
-    if (showOscarOnly) {
-      filtered = filtered.filter(program => program.oscar);
-    }
-
-    if (!searchTerm.trim()) return filtered;
-
+  const filterProgramsBySearch = (programs: Program[]): Program[] => {
+    if (!searchTerm.trim()) return programs;
     const searchLower = searchTerm.toLowerCase();
-    return filtered.filter(program =>
+    return programs.filter(program =>
       program.title.toLowerCase().includes(searchLower) ||
       (program.description && program.description.toLowerCase().includes(searchLower))
     );
+  };
+
+  const filterPrograms = (programs: Program[]): Program[] => {
+    let filtered = filterProgramsBySearch(programs);
+    if (showOscarOnly) {
+      filtered = filtered.filter(program => program.oscar);
+    }
+    return filtered;
+  };
+
+  const countOscarPrograms = (): number => {
+    let count = 0;
+    const sortedDates = [...selectedDates].sort().reverse();
+    sortedDates.forEach(date => {
+      if (!allPrograms[date]) return;
+      Object.values(allPrograms[date].programs).forEach(channelData => {
+        const filtered = filterProgramsBySearch(channelData.programs);
+        filtered.forEach(program => {
+          if (program.oscar) count += 1;
+        });
+      });
+    });
+    return count;
   };
 
   const getCombinedChannelPrograms = () => {
@@ -228,14 +244,14 @@ function ProgramsView() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <label className="oscar-filter">
-          <input
-            type="checkbox"
-            checked={showOscarOnly}
-            onChange={(e) => setShowOscarOnly(e.target.checked)}
-          />
-          Oscar
-        </label>
+        <button
+          type="button"
+          className={`oscar-pill ${showOscarOnly ? 'active' : ''}`}
+          onClick={() => setShowOscarOnly(prev => !prev)}
+          aria-pressed={showOscarOnly}
+        >
+          Oscar <span className="oscar-pill-count">({countOscarPrograms()})</span>
+        </button>
       </div>
 
       <div className="filter-container">

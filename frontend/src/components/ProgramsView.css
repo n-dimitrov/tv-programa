@@ -384,19 +384,30 @@
   -webkit-box-orient: vertical;
 }
 
-.oscar-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.oscar-pill {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1f2937;
+  padding: 8px 12px;
+  border-radius: 999px;
   font-size: 13px;
-  color: #333;
+  font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.oscar-filter input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #b7791f;
+.oscar-pill.active {
+  background: #f6e05e;
+  border-color: #f6e05e;
+  color: #744210;
+}
+
+.oscar-pill-count {
+  color: #6b7280;
+}
+
+.oscar-pill.active .oscar-pill-count {
+  color: #744210;
 }
 
 .oscar-modal-overlay {
