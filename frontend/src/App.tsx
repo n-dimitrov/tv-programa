@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './App.css';
 import ProgramsView from './components/ProgramsView';
 import ChannelManager from './components/ChannelManager';
 
-type ViewType = 'programs' | 'channels';
-
 function App() {
-  const [currentView, setCurrentView] = useState<ViewType>('programs');
+  const isChannelsView = window.location.pathname.startsWith('/channels');
 
   return (
     <div className="App">
@@ -16,26 +14,8 @@ function App() {
         </div>
       </header>
 
-      <nav className="app-nav">
-        <div className="app-container">
-          <button
-            className={`nav-btn ${currentView === 'programs' ? 'active' : ''}`}
-            onClick={() => setCurrentView('programs')}
-          >
-            Programs
-          </button>
-          <button
-            className={`nav-btn nav-btn-right ${currentView === 'channels' ? 'active' : ''}`}
-            onClick={() => setCurrentView('channels')}
-          >
-            Channels
-          </button>
-        </div>
-      </nav>
-
       <main className="app-main">
-        {currentView === 'programs' && <ProgramsView />}
-        {currentView === 'channels' && <ChannelManager />}
+        {isChannelsView ? <ChannelManager /> : <ProgramsView />}
       </main>
 
       <footer className="app-footer">

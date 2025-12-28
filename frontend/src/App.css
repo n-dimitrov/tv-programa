@@ -30,43 +30,6 @@
 }
 
 
-.app-nav {
-  background: white;
-  border-bottom: 1px solid #ddd;
-  padding: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-
-.app-nav .app-container {
-  justify-content: space-between;
-}
-
-.nav-btn {
-  padding: 10px 20px;
-  border: 2px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  font-size: 14px;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-  color: #666;
-}
-
-.nav-btn:hover {
-  background: #f0f0f0;
-  color: #333;
-}
-
-.nav-btn.active {
-  border-bottom-color: #667eea;
-  color: #667eea;
-  font-weight: bold;
-}
-
-.nav-btn-right {
-  margin-left: auto;
-}
-
 .app-main {
   flex: 1;
   padding: 20px;
