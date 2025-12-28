@@ -189,18 +189,21 @@ function ProgramsView() {
   };
 
   const countOscarPrograms = (): number => {
-    let count = 0;
+    const seen = new Set<string>();
     const sortedDates = [...selectedDates].sort().reverse();
     sortedDates.forEach(date => {
       if (!allPrograms[date]) return;
       Object.values(allPrograms[date].programs).forEach(channelData => {
         const filtered = filterProgramsBySearch(channelData.programs);
         filtered.forEach(program => {
-          if (program.oscar) count += 1;
+          if (!program.oscar) return;
+          const key = program.oscar.title_en || program.title;
+          if (seen.has(key)) return;
+          seen.add(key);
         });
       });
     });
-    return count;
+    return seen.size;
   };
 
   const getOscarPosterPrograms = (): Program[] => {
