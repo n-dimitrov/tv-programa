@@ -33,11 +33,6 @@
   color: #6b7280;
 }
 
-.oscar-strip-header span {
-  font-size: 12px;
-  color: #9ca3af;
-}
-
 .oscar-strip-scroll {
   display: flex;
   gap: 12px;
@@ -503,8 +498,8 @@
 }
 
 .oscar-pill {
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border: none;
+  background: transparent;
   color: #1f2937;
   padding: 8px 12px;
   border-radius: 999px;
@@ -512,20 +507,56 @@
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
+  height: 32px;
+  width: 135px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .oscar-pill.active {
   background: #f6e05e;
-  border-color: #f6e05e;
   color: #744210;
+}
+
+.oscar-pill.inactive {
+  color: #64748b;
 }
 
 .oscar-pill-count {
   color: #6b7280;
+  font-variant-numeric: tabular-nums;
 }
 
 .oscar-pill.active .oscar-pill-count {
   color: #744210;
+}
+
+.oscar-switch {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.oscar-switch-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #1f2937;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.oscar-switch-arrow:hover {
+  background: rgba(15, 23, 42, 0.06);
 }
 
 .oscar-modal-overlay {

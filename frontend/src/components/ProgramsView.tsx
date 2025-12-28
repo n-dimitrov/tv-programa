@@ -49,7 +49,14 @@ function ProgramsView() {
   const [hiddenChannels, setHiddenChannels] = useState<Set<string>>(new Set());
   const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showOscarOnly, setShowOscarOnly] = useState<boolean>(false);
+  type OscarFilterKey = 'oscar' | 'winners' | 'best-picture';
+  const OSCAR_FILTERS: { key: OscarFilterKey; label: string }[] = [
+    { key: 'oscar', label: 'Nomenees' },
+    { key: 'winners', label: 'Oscars' },
+    { key: 'best-picture', label: 'Best Pictures' }
+  ];
+  const [oscarFilterIndex, setOscarFilterIndex] = useState<number>(0);
+  const [isOscarFilterActive, setIsOscarFilterActive] = useState<boolean>(false);
   const [oscarModalProgram, setOscarModalProgram] = useState<Program | null>(null);
   const [activePosterIndex, setActivePosterIndex] = useState<number>(0);
   const [lastInteractionTs, setLastInteractionTs] = useState<number>(Date.now());
@@ -180,15 +187,27 @@ function ProgramsView() {
     );
   };
 
+  const matchesOscarFilter = (program: Program, filterKey: OscarFilterKey): boolean => {
+    if (!program.oscar) return false;
+
+    if (filterKey === 'oscar') return true;
+    if (filterKey === 'winners') return program.oscar.winner > 0;
+    if (filterKey === 'best-picture') {
+      return program.oscar.winner_categories.includes('Best Picture');
+    }
+    return true;
+  };
+
   const filterPrograms = (programs: Program[]): Program[] => {
     let filtered = filterProgramsBySearch(programs);
-    if (showOscarOnly) {
-      filtered = filtered.filter(program => program.oscar);
+    if (isOscarFilterActive) {
+      const effectiveFilter = OSCAR_FILTERS[oscarFilterIndex].key;
+      filtered = filtered.filter(program => matchesOscarFilter(program, effectiveFilter));
     }
     return filtered;
   };
 
-  const countOscarPrograms = (): number => {
+  const countOscarPrograms = (filterKey: OscarFilterKey): number => {
     const seen = new Set<string>();
     const sortedDates = [...selectedDates].sort().reverse();
     sortedDates.forEach(date => {
@@ -196,7 +215,7 @@ function ProgramsView() {
       Object.values(allPrograms[date].programs).forEach(channelData => {
         const filtered = filterProgramsBySearch(channelData.programs);
         filtered.forEach(program => {
-          if (!program.oscar) return;
+          if (!matchesOscarFilter(program, filterKey) || !program.oscar) return;
           const key = program.oscar.title_en || program.title;
           if (seen.has(key)) return;
           seen.add(key);
@@ -393,7 +412,39 @@ function ProgramsView() {
         >
           <div className="oscar-strip-header">
             <h3>Oscar Picks</h3>
-            <span>{oscarPosters.length}</span>
+            <div className="oscar-switch" role="group" aria-label="Oscar filter">
+              <button
+                type="button"
+                className="oscar-switch-arrow"
+                onClick={() =>
+                  setOscarFilterIndex(prev => (prev - 1 + OSCAR_FILTERS.length) % OSCAR_FILTERS.length)
+                }
+                aria-label="Previous Oscar filter"
+              >
+                {'<'}
+              </button>
+              <button
+                type="button"
+                className={`oscar-pill ${isOscarFilterActive ? 'active' : 'inactive'}`}
+                onClick={() => setIsOscarFilterActive(prev => !prev)}
+                aria-pressed={isOscarFilterActive}
+              >
+                {OSCAR_FILTERS[oscarFilterIndex].label}
+                <span className="oscar-pill-count">
+                  ({countOscarPrograms(OSCAR_FILTERS[oscarFilterIndex].key)})
+                </span>
+              </button>
+              <button
+                type="button"
+                className="oscar-switch-arrow"
+                onClick={() =>
+                  setOscarFilterIndex(prev => (prev + 1) % OSCAR_FILTERS.length)
+                }
+                aria-label="Next Oscar filter"
+              >
+                {'>'}
+              </button>
+            </div>
           </div>
           <div className="oscar-strip-scroll" ref={posterScrollRef}>
             {oscarPostersWithClones.map((posterMeta) => (
@@ -459,14 +510,6 @@ function ProgramsView() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <button
-          type="button"
-          className={`oscar-pill ${showOscarOnly ? 'active' : ''}`}
-          onClick={() => setShowOscarOnly(prev => !prev)}
-          aria-pressed={showOscarOnly}
-        >
-          Oscar <span className="oscar-pill-count">({countOscarPrograms()})</span>
-        </button>
       </div>
 
       <div className="filter-container">
