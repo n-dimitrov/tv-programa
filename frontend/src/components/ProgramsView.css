@@ -469,17 +469,18 @@
   color: #9a3412;
 }
 
-.oscar-category-list {
-  display: flex;
-  flex-wrap: wrap;
+.oscar-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .oscar-category {
-  padding: 6px 10px;
-  border-radius: 999px;
+  padding: 8px 10px;
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
+  text-align: center;
 }
 
 .oscar-winner {
@@ -492,14 +493,35 @@
   color: #1f2937;
 }
 
-.oscar-category-empty {
-  font-size: 12px;
-  color: #9ca3af;
+.oscar-disabled {
+  background: #f8fafc;
+  color: #cbd5f5;
+  border: 1px dashed #e2e8f0;
 }
 
 @media (max-width: 720px) {
   .oscar-modal-content {
     grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .oscar-poster {
+    max-width: 180px;
+    margin: 0 auto;
+  }
+
+  .oscar-modal-close {
+    top: 12px;
+    right: 12px;
+  }
+
+  .oscar-details h3 {
+    font-size: 18px;
+  }
+
+  .oscar-overview {
+    font-size: 13px;
   }
 }
 

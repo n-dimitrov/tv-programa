@@ -447,32 +447,32 @@ function ProgramsView() {
                   <p className="oscar-overview">{oscarModalProgram.oscar.overview}</p>
                 )}
                 <div className="oscar-category-group">
-                  <h4>Winning Categories</h4>
-                  {oscarModalProgram.oscar.winner_categories.length ? (
-                    <div className="oscar-category-list">
-                      {oscarModalProgram.oscar.winner_categories.map((cat) => (
-                        <span key={cat} className="oscar-category oscar-winner">
-                          {cat}
+                  <h4>Oscar Categories</h4>
+                  <div className="oscar-category-grid">
+                    {[
+                      'Best Picture',
+                      'Best Director',
+                      'Best Actor',
+                      'Best Actress',
+                      'Best Supporting Actor',
+                      'Best Supporting Actress',
+                      'Best Original Screenplay',
+                      'Best Adapted Screenplay'
+                    ].map((category) => {
+                      const isWinner = oscarModalProgram.oscar?.winner_categories.includes(category);
+                      const isNominee = oscarModalProgram.oscar?.nominee_categories.includes(category);
+                      const statusClass = isWinner
+                        ? 'oscar-winner'
+                        : isNominee
+                          ? 'oscar-nominee'
+                          : 'oscar-disabled';
+                      return (
+                        <span key={category} className={`oscar-category ${statusClass}`}>
+                          {category}
                         </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="oscar-category-empty">None</div>
-                  )}
-                </div>
-                <div className="oscar-category-group">
-                  <h4>Nomination Categories</h4>
-                  {oscarModalProgram.oscar.nominee_categories.length ? (
-                    <div className="oscar-category-list">
-                      {oscarModalProgram.oscar.nominee_categories.map((cat) => (
-                        <span key={cat} className="oscar-category oscar-nominee">
-                          {cat}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="oscar-category-empty">None</div>
-                  )}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
