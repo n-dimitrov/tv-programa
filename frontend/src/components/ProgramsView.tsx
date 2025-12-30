@@ -122,12 +122,12 @@ function ProgramsView() {
 
   const formatDateDisplay = (dateStr: string): string => {
     const date = new Date(dateStr + 'T00:00:00');
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    };
-    return date.toLocaleDateString('en-US', options);
+    const monthNames = ['Ян', 'Фев', 'Мар', 'Апр', 'Май', 'Юни', 'Юли', 'Авг', 'Сеп', 'Окт', 'Ное', 'Дек'];
+    const weekdayNames = ['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+    const day = date.getDate();
+    const month = monthNames[date.getMonth()];
+    const weekday = weekdayNames[date.getDay()];
+    return `${day} ${month}, ${weekday}`;
   };
 
   const sortProgramsByTimeDescending = (programs: Program[]): Program[] => {
@@ -489,16 +489,19 @@ function ProgramsView() {
               <div className="filter-group">
                 <h4>Филтър по дата</h4>
                 <div className="date-tabs">
-                  {dates.map(date => (
-                    <button
-                      key={date}
-                      className={`date-tab ${selectedDates.includes(date) ? 'active' : ''} ${!hasDataForDate(date) ? 'no-data' : ''}`}
-                      onClick={() => toggleDateFilter(date)}
-                      disabled={!hasDataForDate(date)}
-                    >
-                      {formatDateDisplay(date)}
-                    </button>
-                  ))}
+                  {[...dates].reverse().map((date, index) => {
+                    const isToday = index === 0;
+                    return (
+                      <button
+                        key={date}
+                        className={`date-tab ${selectedDates.includes(date) ? 'active' : ''} ${!hasDataForDate(date) ? 'no-data' : ''} ${isToday ? 'today' : ''}`}
+                        onClick={() => toggleDateFilter(date)}
+                        disabled={!hasDataForDate(date)}
+                      >
+                        {formatDateDisplay(date)}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
