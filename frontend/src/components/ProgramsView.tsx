@@ -477,8 +477,14 @@ function ProgramsView() {
                 type="button"
                 data-poster-index={posterMeta.displayIndex}
                 onClick={() => {
-                  setSearchTerm(posterMeta.program.title);
-                  setActivePosterIndex(posterMeta.displayIndex);
+                  const isSamePoster = posterMeta.displayIndex === activePosterIndex;
+                  const isSameSearch = searchTerm.trim().toLowerCase() === posterMeta.program.title.toLowerCase();
+                  if (isSamePoster && isSameSearch) {
+                    setSearchTerm('');
+                  } else {
+                    setSearchTerm(posterMeta.program.title);
+                    setActivePosterIndex(posterMeta.displayIndex);
+                  }
                   setLastInteractionTs(Date.now());
                 }}
                 aria-label={`Search for ${posterMeta.program.title}`}
