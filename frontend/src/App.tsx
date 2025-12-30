@@ -10,7 +10,10 @@ function App() {
     <div className="App">
       <header className="app-header">
         <div className="app-container">
-          <h1>📺 TV Program Manager</h1>
+          <div className="app-header-text">
+            <h1>7DaysTV</h1>
+            <p className="app-header-subtitle">Програмата за последните 7 дни</p>
+          </div>
         </div>
       </header>
 
@@ -19,7 +22,17 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <p>TV Program Manager</p>
+        <p>
+          7DaysTV използва данни от{' '}
+          <a href="https://www.xn----8sbafg9clhjcp.bg" target="_blank" rel="noreferrer">
+            ТВ Програма .BG
+          </a>{' '}
+          и{' '}
+          <a href="https://www.themoviedb.org" target="_blank" rel="noreferrer">
+            The Movie Database (TMDB)
+          </a>
+          .
+        </p>
       </footer>
     </div>
   );

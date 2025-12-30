@@ -10,7 +10,7 @@
   margin: 0 auto;
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
 }
 
@@ -24,11 +24,19 @@
 .app-header h1 {
   margin: 0;
   font-size: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
+.app-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-header-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+}
 
 .app-main {
   flex: 1;
@@ -49,4 +57,14 @@
 
 .app-footer p {
   margin: 0;
+}
+
+.app-footer a {
+  color: #e2e8f0;
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  color: #ffffff;
+  text-decoration: underline;
 }

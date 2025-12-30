@@ -62,7 +62,7 @@ function ProgramsView() {
   const [lastInteractionTs, setLastInteractionTs] = useState<number>(Date.now());
   const [isPosterOverflowing, setIsPosterOverflowing] = useState<boolean>(true);
   const posterScrollRef = useRef<HTMLDivElement | null>(null);
-  const carouselReadyRef = useRef<boolean>(false);
+  const prevPosterIndexRef = useRef<number>(0);
 
   // Load config, all 7 days of programs at once, and get last 7 days
   useEffect(() => {
@@ -283,142 +283,77 @@ function ProgramsView() {
   };
 
   const oscarPosters = getOscarPosterPrograms();
-  const cloneCount = isPosterOverflowing ? Math.min(4, oscarPosters.length) : 0;
-  const prefixClones = cloneCount ? oscarPosters.slice(-cloneCount) : [];
-  const suffixClones = cloneCount ? oscarPosters.slice(0, cloneCount) : [];
-  const oscarPostersWithClones = [
-    ...prefixClones,
-    ...oscarPosters,
-    ...suffixClones
-  ].map((program, index) => ({
-    program,
-    displayIndex: index
-  }));
-  const getRealIndex = (displayIndex: number): number => {
-    if (!oscarPosters.length) return 0;
-    if (displayIndex < cloneCount) {
-      return oscarPosters.length - cloneCount + displayIndex;
-    }
-    if (displayIndex >= cloneCount + oscarPosters.length) {
-      return displayIndex - (cloneCount + oscarPosters.length);
-    }
-    return displayIndex - cloneCount;
-  };
-  const activePosterMeta = oscarPostersWithClones[activePosterIndex];
-  const activePoster = activePosterMeta
-    ? oscarPosters[getRealIndex(activePosterMeta.displayIndex)]
-    : undefined;
+  const activePoster = oscarPosters[activePosterIndex];
 
   useEffect(() => {
-    if (!oscarPosters.length) return;
-    setLastInteractionTs(Date.now());
-    carouselReadyRef.current = false;
-
-    if (!isPosterOverflowing) {
+    if (!oscarPosters.length) {
       setActivePosterIndex(0);
+      prevPosterIndexRef.current = 0;
       return;
     }
-
-    const startIndex = cloneCount;
-    setActivePosterIndex(startIndex);
-
+    setLastInteractionTs(Date.now());
+    setActivePosterIndex(0);
+    prevPosterIndexRef.current = 0;
     requestAnimationFrame(() => {
-      const container = posterScrollRef.current;
-      const poster = container?.querySelector<HTMLElement>(
-        `[data-poster-index="${startIndex}"]`
-      );
-      if (!container || !poster) return;
-      const targetScrollLeft = poster.offsetLeft - (container.clientWidth - poster.clientWidth) / 2;
-      container.scrollTo({ left: targetScrollLeft, behavior: 'auto' });
-      carouselReadyRef.current = true;
+      posterScrollRef.current?.scrollTo({ left: 0, behavior: 'auto' });
     });
-  }, [cloneCount, isPosterOverflowing, oscarPosters.length]);
+  }, [oscarPosters.length]);
 
   useEffect(() => {
     const container = posterScrollRef.current;
     if (!container || !oscarPosters.length) return;
 
-    const updateEdgePadding = () => {
-      const posterImg = container.querySelector<HTMLImageElement>('img');
-      if (!posterImg) return;
-      const posterWidth = posterImg.getBoundingClientRect().width;
-      const styles = window.getComputedStyle(container);
-      const gap = parseFloat(styles.columnGap || styles.gap || '12');
-      const totalWidth = posterWidth * oscarPosters.length + gap * Math.max(0, oscarPosters.length - 1);
-      const overflow = totalWidth > container.clientWidth + 1;
+    const updateOverflow = () => {
+      const overflow = container.scrollWidth - container.clientWidth > 8;
       setIsPosterOverflowing(overflow);
       if (!overflow) {
-        container.style.setProperty('--oscar-edge-pad', '0px');
         container.scrollTo({ left: 0, behavior: 'auto' });
-        return;
       }
-      const halfSpace = container.clientWidth / 2 - posterWidth / 2;
-      const step = posterWidth + gap;
-      const leftCount = Math.floor(halfSpace / step);
-      const remainder = halfSpace - leftCount * step;
-      const pad = Math.max(0, remainder - posterWidth / 2);
-      container.style.setProperty('--oscar-edge-pad', `${pad}px`);
     };
 
-    updateEdgePadding();
-    window.addEventListener('resize', updateEdgePadding);
-    return () => window.removeEventListener('resize', updateEdgePadding);
+    updateOverflow();
+    window.addEventListener('resize', updateOverflow);
+    return () => window.removeEventListener('resize', updateOverflow);
   }, [oscarPosters.length]);
 
   useEffect(() => {
-    if (!oscarPostersWithClones.length) return;
+    if (!oscarPosters.length) return;
     const interval = setInterval(() => {
       if (Date.now() - lastInteractionTs < 10000) return;
-      setActivePosterIndex(prev => (prev + 1) % oscarPostersWithClones.length);
+      setActivePosterIndex(prev => (prev + 1) % oscarPosters.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [oscarPostersWithClones.length, lastInteractionTs]);
+  }, [lastInteractionTs, oscarPosters.length]);
 
   useEffect(() => {
     if (!posterScrollRef.current) return;
-    if (!carouselReadyRef.current) return;
     if (!isPosterOverflowing) return;
     const poster = posterScrollRef.current.querySelector<HTMLElement>(
       `[data-poster-index="${activePosterIndex}"]`
     );
     if (poster) {
       const container = posterScrollRef.current;
-      const containerWidth = container.clientWidth;
-      const targetScrollLeft = poster.offsetLeft - (containerWidth - poster.clientWidth) / 2;
-      container.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
-      const lastOriginalIndex = cloneCount + oscarPosters.length - 1;
-      if (activePosterIndex > lastOriginalIndex && oscarPosters.length) {
-        const realIndex = activePosterIndex - (cloneCount + oscarPosters.length);
-        const realDisplayIndex = cloneCount + realIndex;
-        const realPoster = container.querySelector<HTMLElement>(
-          `[data-poster-index="${realDisplayIndex}"]`
-        );
-        if (realPoster) {
-          const realTargetScrollLeft =
-            realPoster.offsetLeft - (containerWidth - realPoster.clientWidth) / 2;
-          window.setTimeout(() => {
-            container.scrollTo({ left: realTargetScrollLeft, behavior: 'auto' });
-            setActivePosterIndex(realDisplayIndex);
-          }, 350);
-        }
-      }
-      if (activePosterIndex < cloneCount && oscarPosters.length) {
-        const realIndex = oscarPosters.length - cloneCount + activePosterIndex;
-        const realDisplayIndex = cloneCount + realIndex;
-        const realPoster = container.querySelector<HTMLElement>(
-          `[data-poster-index="${realDisplayIndex}"]`
-        );
-        if (realPoster) {
-          const realTargetScrollLeft =
-            realPoster.offsetLeft - (containerWidth - realPoster.clientWidth) / 2;
-          window.setTimeout(() => {
-            container.scrollTo({ left: realTargetScrollLeft, behavior: 'auto' });
-            setActivePosterIndex(realDisplayIndex);
-          }, 350);
+      const styles = window.getComputedStyle(container);
+      const paddingLeft = parseFloat(styles.paddingLeft || '0');
+      const didWrapToStart =
+        prevPosterIndexRef.current === oscarPosters.length - 1 && activePosterIndex === 0;
+      if (didWrapToStart) {
+        container.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        const posterLeft = poster.offsetLeft;
+        const posterRight = posterLeft + poster.clientWidth;
+        const containerLeft = container.scrollLeft;
+        const containerRight = containerLeft + container.clientWidth;
+        if (posterRight > containerRight) {
+          const targetLeft = posterRight - container.clientWidth + paddingLeft;
+          container.scrollTo({ left: targetLeft, behavior: 'smooth' });
+        } else if (posterLeft < containerLeft + paddingLeft) {
+          container.scrollTo({ left: posterLeft - paddingLeft, behavior: 'smooth' });
         }
       }
     }
-  }, [activePosterIndex, cloneCount, isPosterOverflowing, oscarPosters.length]);
+    prevPosterIndexRef.current = activePosterIndex;
+  }, [activePosterIndex, isPosterOverflowing, oscarPosters.length]);
 
   return (
     <div className="programs-view">
@@ -468,30 +403,30 @@ function ProgramsView() {
             className={`oscar-strip-scroll ${!isPosterOverflowing ? 'compact' : ''}`}
             ref={posterScrollRef}
           >
-            {oscarPostersWithClones.map((posterMeta) => (
+            {oscarPosters.map((poster, index) => (
               <button
-                key={`${posterMeta.displayIndex}-${posterMeta.program.oscar?.title_en || posterMeta.program.title}`}
+                key={`${index}-${poster.oscar?.title_en || poster.title}`}
                 className={`oscar-poster-card ${
-                  posterMeta.displayIndex === activePosterIndex ? 'active' : ''
+                  index === activePosterIndex ? 'active' : ''
                 }`}
                 type="button"
-                data-poster-index={posterMeta.displayIndex}
+                data-poster-index={index}
                 onClick={() => {
-                  const isSamePoster = posterMeta.displayIndex === activePosterIndex;
-                  const isSameSearch = searchTerm.trim().toLowerCase() === posterMeta.program.title.toLowerCase();
+                  const isSamePoster = index === activePosterIndex;
+                  const isSameSearch = searchTerm.trim().toLowerCase() === poster.title.toLowerCase();
                   if (isSamePoster && isSameSearch) {
                     setSearchTerm('');
                   } else {
-                    setSearchTerm(posterMeta.program.title);
-                    setActivePosterIndex(posterMeta.displayIndex);
+                    setSearchTerm(poster.title);
+                    setActivePosterIndex(index);
                   }
                   setLastInteractionTs(Date.now());
                 }}
-                aria-label={`Search for ${posterMeta.program.title}`}
+                aria-label={`Search for ${poster.title}`}
               >
                 <img
-                  src={`${TMDB_POSTER_BASE_URL}${posterMeta.program.oscar?.poster_path}`}
-                  alt={posterMeta.program.oscar?.title_en || posterMeta.program.title}
+                  src={`${TMDB_POSTER_BASE_URL}${poster.oscar?.poster_path}`}
+                  alt={poster.oscar?.title_en || poster.title}
                 />
               </button>
             ))}
