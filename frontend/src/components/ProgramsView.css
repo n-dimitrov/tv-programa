@@ -16,6 +16,7 @@
   padding: 18px 16px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
   margin-bottom: 16px;
+  overflow: visible;
 }
 
 .oscar-strip-header {
@@ -40,18 +41,27 @@
   padding-top: 12px;
   padding-bottom: 6px;
   --poster-width: 96px;
-  --oscar-edge-pad: calc(50% - var(--poster-width) / 2);
-  padding-left: var(--oscar-edge-pad);
-  padding-right: var(--oscar-edge-pad);
-  scroll-snap-type: x mandatory;
+  --active-ring: 5px;
+  --edge-pad-left: 16px;
+  --edge-pad-right: 24px;
+  padding-left: var(--active-ring);
+  padding-right: var(--active-ring);
+  scroll-padding-left: var(--active-ring);
+  scroll-padding-right: var(--active-ring);
+  scroll-snap-type: x proximity;
+}
+
+.oscar-strip-scroll::after {
+  content: '';
+  flex: 0 0 0px;
 }
 
 .oscar-strip-scroll.compact {
   justify-content: center;
-  overflow-x: visible;
+  overflow-x: hidden;
   scroll-snap-type: none;
-  padding-left: 0;
-  padding-right: 0;
+  padding-left: calc(var(--edge-pad-left) + var(--active-ring));
+  padding-right: calc(var(--edge-pad-right) + var(--active-ring));
 }
 
 .oscar-strip-scroll::-webkit-scrollbar {
@@ -68,7 +78,7 @@
   padding: 0;
   background: transparent;
   cursor: pointer;
-  scroll-snap-align: center;
+  scroll-snap-align: start;
 }
 
 .oscar-poster-card img {
@@ -85,7 +95,7 @@
 }
 
 .oscar-poster-card.active img {
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18), 0 0 0 3px #f6e05e;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18), 0 0 0 var(--active-ring) #f6e05e;
   transform: translateY(-6px);
 }
 
@@ -164,7 +174,7 @@
 .filter-section {
   background: white;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
