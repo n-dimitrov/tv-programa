@@ -51,9 +51,9 @@ function ProgramsView() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   type OscarFilterKey = 'oscar' | 'winners' | 'best-picture';
   const OSCAR_FILTERS: { key: OscarFilterKey; label: string }[] = [
-    { key: 'oscar', label: 'Nomenees' },
-    { key: 'winners', label: 'Oscars' },
-    { key: 'best-picture', label: 'Best Pictures' }
+    { key: 'oscar', label: 'Номиниран' },
+    { key: 'winners', label: 'Oscar' },
+    { key: 'best-picture', label: 'Best Picture ★' }
   ];
   const [oscarFilterIndex, setOscarFilterIndex] = useState<number>(0);
   const [isOscarFilterActive, setIsOscarFilterActive] = useState<boolean>(false);
@@ -104,13 +104,13 @@ function ProgramsView() {
         const response = await fetch(`${API_URL}/api/programs/7days`);
 
         if (!response.ok) {
-          throw new Error('No programs found');
+          throw new Error('Не са намерени предавания');
         }
 
         const data = await response.json();
         setAllPrograms(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load programs');
+        setError(err instanceof Error ? err.message : 'Неуспешно зареждане на програмата');
         setAllPrograms({});
       } finally {
         setLoading(false);
@@ -364,7 +364,7 @@ function ProgramsView() {
           onTouchStart={() => setLastInteractionTs(Date.now())}
         >
           <div className="oscar-strip-header">
-            <h3>Oscar Picks</h3>
+            <h3>OSCAR Подбор</h3>
             <div className="oscar-switch" role="group" aria-label="Oscar filter">
               <button
                 type="button"
@@ -468,7 +468,7 @@ function ProgramsView() {
         <input
           type="text"
           className="search-input"
-          placeholder="Search programs..."
+          placeholder="Търсене на предавания..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -481,13 +481,13 @@ function ProgramsView() {
             onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
           >
             <span className={`expand-icon ${isFiltersExpanded ? 'expanded' : ''}`}>▼</span>
-            <h3>Filters</h3>
+            <h3>Филтри</h3>
           </button>
           {isFiltersExpanded && (
             <div className="filter-content">
               {/* Date Filter */}
               <div className="filter-group">
-                <h4>Filter by Date</h4>
+                <h4>Филтър по дата</h4>
                 <div className="date-tabs">
                   {dates.map(date => (
                     <button
@@ -505,14 +505,14 @@ function ProgramsView() {
               {/* Channel Selection */}
               {selectedDates.length > 0 && (
                 <div className="filter-group">
-                  <h4>Select Channels</h4>
+                  <h4>Избор на канали</h4>
                   <div className="channel-selector">
                     <div className="selector-controls">
                       <button className="select-all-btn" onClick={selectAllChannels}>
-                        Select All
+                        Избери всички
                       </button>
                       <button className="unselect-all-btn" onClick={unselectAllChannels}>
-                        Unselect All
+                        Премахни всички
                       </button>
                     </div>
                     {Object.values(getCombinedChannelPrograms()).map(channelData => (
@@ -542,7 +542,7 @@ function ProgramsView() {
         </div>
       </div>
 
-      {loading && <div className="loading">Loading programs for all 7 days...</div>}
+      {loading && <div className="loading">Зареждане на програмата за 7 дни...</div>}
 
       {error && <div className="error-message">{error}</div>}
 
@@ -567,7 +567,7 @@ function ProgramsView() {
                   )}
                   <h3>{channelData.channel.name}</h3>
                   <span className="program-count">
-                    {channelData.programs.reduce((cnt, dp) => cnt + dp.programs.length, 0)} programs
+                    {channelData.programs.reduce((cnt, dp) => cnt + dp.programs.length, 0)} предавания
                   </span>
                 </div>
 
@@ -640,7 +640,7 @@ function ProgramsView() {
 
       {!loading && !error && selectedDates.length === 0 && (
         <div className="no-programs">
-          <p>Select one or more dates to view programs</p>
+          <p>Изберете една или повече дати за преглед на програмата</p>
         </div>
       )}
 
