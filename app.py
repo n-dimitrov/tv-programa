@@ -3,9 +3,11 @@
 
 import json
 import os
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Optional
+from threading import Lock
 
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,9 +24,13 @@ DATA_DIR = Path("data/programs")
 BASE_URL = TVProgramFetcher.BASE_URL
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 CHANNELS_FILE = "data/tv_channels.json"
+AGGREGATE_7DAYS_FILE = "data/programs/7days.json"
+CACHE_TTL_SECONDS = int(os.getenv("PROGRAMS_7DAYS_CACHE_TTL", "1800"))
 
 # Initialize storage provider (local or cloud)
 storage = get_storage_provider()
+_programs_7days_cache = {"data": None, "expires_at": 0.0}
+_programs_7days_lock = Lock()
 
 # Pydantic models
 class Channel(BaseModel):
@@ -111,10 +117,58 @@ def load_programs_for_date(date: str) -> Optional[Dict]:
     file_path = str(get_program_file_path(date))
     return storage.read_json(file_path)
 
+def load_7days_aggregate() -> Optional[Dict]:
+    """Load the precomputed 7-day aggregate if available"""
+    payload = storage.read_json(AGGREGATE_7DAYS_FILE)
+    if not payload:
+        return None
+    if isinstance(payload, dict) and "data" in payload:
+        return payload.get("data")
+    return payload
+
+def save_7days_aggregate(data: Dict) -> bool:
+    """Save the 7-day aggregate to storage with metadata"""
+    payload = {
+        "generated_at": datetime.now().isoformat(),
+        "data": data,
+    }
+    return storage.write_json(AGGREGATE_7DAYS_FILE, payload)
+
 def get_last_7_days() -> List[str]:
     """Get dates for the last 7 days (including today)"""
     today = datetime.now().date()
     return [(today - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
+
+def build_7days_data() -> Dict:
+    """Build 7-day data from daily files"""
+    result = {}
+    for date in get_last_7_days():
+        programs = load_programs_for_date(date)
+        if programs:
+            result[date] = programs
+    return result
+
+def get_cached_7days() -> Optional[Dict]:
+    """Return cached 7-day data if fresh"""
+    now = time.time()
+    with _programs_7days_lock:
+        if _programs_7days_cache["data"] and _programs_7days_cache["expires_at"] > now:
+            return _programs_7days_cache["data"]
+    return None
+
+def set_cached_7days(data: Dict) -> None:
+    """Update in-memory cache for 7-day data"""
+    with _programs_7days_lock:
+        _programs_7days_cache["data"] = data
+        _programs_7days_cache["expires_at"] = time.time() + CACHE_TTL_SECONDS
+
+def refresh_7days_aggregate() -> Dict:
+    """Rebuild and persist 7-day aggregate, and update cache"""
+    data = build_7days_data()
+    if data:
+        save_7days_aggregate(data)
+        set_cached_7days(data)
+    return data
 
 # API Endpoints
 # Note: Root "/" endpoint removed - now serves React frontend at /
@@ -182,6 +236,9 @@ async def fetch_programs(date_path: str = "Днес"):
         # Note: Old files (> 7 days) are kept in storage but not loaded
         # No cleanup/deletion is performed
 
+        # Update 7-day aggregate and cache
+        refresh_7days_aggregate()
+
         return {
             "status": "success",
             "message": f"Fetched programs for {date_path}",
@@ -223,13 +280,16 @@ async def get_programs_7days():
     Returns:
         Dictionary with dates as keys and program data as values
     """
-    result = {}
-    # Only load programs from the last 7 days
-    for date in get_last_7_days():
-        programs = load_programs_for_date(date)
-        if programs:
-            result[date] = programs
+    cached = get_cached_7days()
+    if cached:
+        return cached
 
+    aggregate = load_7days_aggregate()
+    if aggregate:
+        set_cached_7days(aggregate)
+        return aggregate
+
+    result = refresh_7days_aggregate()
     if not result:
         raise HTTPException(status_code=404, detail="No programs found")
 
