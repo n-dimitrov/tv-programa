@@ -214,6 +214,7 @@ async def fetch_programs(date_path: str = "Днес"):
         oscar_titles = []
         oscar_winners = 0
         oscar_total = 0
+        oscar_info = ""
         if data.get("programs"):
             for channel_data in data["programs"].values():
                 for program in channel_data.get("programs", []):
@@ -224,14 +225,58 @@ async def fetch_programs(date_path: str = "Днес"):
                     if oscar.get("winner", 0) > 0:
                         oscar_winners += 1
                     title_en = oscar.get("title_en")
+                    winner_count = oscar.get("winner", 0)
+                    nominee_count = oscar.get("nominee", 0)
                     oscar_titles.append(
                         {
                             "title": program.get("title"),
                             "title_en": title_en,
-                            "winner": oscar.get("winner", 0),
-                            "nominee": oscar.get("nominee", 0),
+                            "winner": winner_count,
+                            "nominee": nominee_count,
                         }
                     )
+
+        if oscar_titles:
+            def format_counts(wins: int, noms: int) -> str:
+                parts = []
+                if wins:
+                    label = "Oscar" if wins == 1 else "Oscars"
+                    parts.append(f"{wins} {label}")
+                if noms:
+                    label = "Nomination" if noms == 1 else "Nominations"
+                    parts.append(f"{noms} {label}")
+                return ", ".join(parts) if parts else "0 Nominations"
+
+            winners_lines = []
+            nominees_lines = []
+            for item in oscar_titles:
+                title = item.get("title") or "Unknown title"
+                title_en = item.get("title_en")
+                wins = item.get("winner", 0)
+                noms = item.get("nominee", 0)
+                display_title = f"{title} / {title_en}" if title_en else title
+                line = f"- {display_title} - {format_counts(wins, noms)}"
+                if wins > 0:
+                    winners_lines.append(line)
+                elif noms > 0:
+                    nominees_lines.append(line)
+
+            winners_list = (
+                "<ul>" + "".join(f"<li>{line[2:]}</li>" for line in winners_lines) + "</ul>"
+                if winners_lines
+                else "<p>None</p>"
+            )
+            nominees_list = (
+                "<ul>" + "".join(f"<li>{line[2:]}</li>" for line in nominees_lines) + "</ul>"
+                if nominees_lines
+                else "<p>None</p>"
+            )
+            oscar_info = (
+                f"<p><strong>Oscar winners ({len(winners_lines)})</strong></p>"
+                f"{winners_list}"
+                f"<p><strong>Oscar nominees ({len(nominees_lines)})</strong></p>"
+                f"{nominees_list}"
+            )
 
         # Note: Old files (> 7 days) are kept in storage but not loaded
         # No cleanup/deletion is performed
@@ -251,6 +296,12 @@ async def fetch_programs(date_path: str = "Днес"):
                 "nominees_only": oscar_total - oscar_winners,
                 "titles": oscar_titles,
             },
+            "oscar_info_summary": (
+                f"Oscar summary for {target_date.isoformat()}: "
+                f"{oscar_total} programs, {oscar_winners} winners, "
+                f"{oscar_total - oscar_winners} nominees."
+            ),
+            "oscar_info": oscar_info,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
