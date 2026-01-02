@@ -120,14 +120,15 @@ function ProgramsView() {
     loadConfigAndPrograms();
   }, []);
 
-  const formatDateDisplay = (dateStr: string): string => {
+  const formatDateDisplay = (dateStr: string, uppercase = false): string => {
     const date = new Date(dateStr + 'T00:00:00');
     const monthNames = ['Ян', 'Фев', 'Мар', 'Апр', 'Май', 'Юни', 'Юли', 'Авг', 'Сеп', 'Окт', 'Ное', 'Дек'];
     const weekdayNames = ['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
     const day = date.getDate();
     const month = monthNames[date.getMonth()];
     const weekday = weekdayNames[date.getDay()];
-    return `${day} ${month}, ${weekday}`;
+    const label = `${day} ${month}, ${weekday}`;
+    return uppercase ? label.toUpperCase() : label;
   };
 
   const sortProgramsByTimeDescending = (programs: Program[]): Program[] => {
@@ -498,7 +499,7 @@ function ProgramsView() {
                         onClick={() => toggleDateFilter(date)}
                         disabled={!hasDataForDate(date)}
                       >
-                        {formatDateDisplay(date)}
+                        {formatDateDisplay(date, true)}
                       </button>
                     );
                   })}
