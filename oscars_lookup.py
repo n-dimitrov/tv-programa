@@ -157,6 +157,7 @@ class OscarLookup:
             "winner_categories": sorted(info["winner"]),
             "nominee_categories": sorted(info["nominee"]),
             "title_en": movie.get("title"),
+            "year": movie.get("year"),
             "poster_path": movie.get("poster_path"),
             "overview": movie.get("overview"),
             "tmdb_id": tmdb_id,

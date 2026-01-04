@@ -13,6 +13,7 @@ interface Program {
     winner_categories: string[];
     nominee_categories: string[];
     title_en?: string;
+    year?: number;
     poster_path?: string;
     overview?: string;
     watch?: {
@@ -698,7 +699,10 @@ function ProgramsView() {
               <div className="oscar-details">
                 <h3>{oscarModalProgram.title}</h3>
                 {oscarModalProgram.oscar.title_en && (
-                  <div className="oscar-title-en">{oscarModalProgram.oscar.title_en}</div>
+                  <div className="oscar-title-en">
+                    {oscarModalProgram.oscar.title_en}
+                    {oscarModalProgram.oscar.year && ` (${oscarModalProgram.oscar.year})`}
+                  </div>
                 )}
                 {oscarModalProgram.oscar.overview && (
                   <p className="oscar-overview">{oscarModalProgram.oscar.overview}</p>

@@ -59,7 +59,9 @@ class ChannelPrograms(BaseModel):
 app = FastAPI(
     title="TV Program Manager",
     description="Manage TV programs with 7-day rolling window",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url=None,
+    redoc_url=None
 )
 
 # CORS middleware - allow requests from frontend during development
@@ -234,10 +236,12 @@ async def fetch_programs(date_path: str = "Днес"):
                     winner_count = oscar.get("winner", 0)
                     nominee_count = oscar.get("nominee", 0)
                     watch_info = oscar.get("watch")
+                    year = oscar.get("year")
                     oscar_titles.append(
                         {
                             "title": title,
                             "title_en": title_en,
+                            "year": year,
                             "winner": winner_count,
                             "nominee": nominee_count,
                             "watch": watch_info,
@@ -260,6 +264,7 @@ async def fetch_programs(date_path: str = "Днес"):
             for item in oscar_titles:
                 title = item.get("title") or "Unknown title"
                 title_en = item.get("title_en")
+                year = item.get("year")
                 wins = item.get("winner", 0)
                 noms = item.get("nominee", 0)
                 watch = item.get("watch") or {}
@@ -270,7 +275,17 @@ async def fetch_programs(date_path: str = "Днес"):
                         if name and name not in providers:
                             providers.append(name)
                 watch_note = f" (Watch: {', '.join(providers)})" if providers else ""
-                display_title = f"{title} / {title_en}" if title_en else title
+                
+                # Format title with year
+                if title_en and year:
+                    display_title = f"{title} / {title_en} ({year})"
+                elif title_en:
+                    display_title = f"{title} / {title_en}"
+                elif year:
+                    display_title = f"{title} ({year})"
+                else:
+                    display_title = title
+                
                 line = f"- {display_title} - {format_counts(wins, noms)}{watch_note}"
                 if wins > 0:
                     winners_lines.append(line)
