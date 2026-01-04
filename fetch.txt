@@ -1,3 +1,0 @@
-curl -X POST "http://localhost:8000/api/fetch"
-
-curl -X POST "https://tv-programa-389635339946.us-central1.run.app//api/fetch"

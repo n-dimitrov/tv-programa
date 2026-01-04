@@ -15,7 +15,21 @@ interface Program {
     title_en?: string;
     poster_path?: string;
     overview?: string;
+    watch?: {
+      region?: string;
+      link?: string;
+      flatrate?: WatchProvider[];
+      rent?: WatchProvider[];
+      buy?: WatchProvider[];
+    };
   };
+}
+
+interface WatchProvider {
+  logo_path?: string;
+  provider_id?: number;
+  provider_name?: string;
+  display_priority?: number;
 }
 
 interface DayPrograms {
@@ -40,6 +54,7 @@ interface DayPrograms {
 
 function ProgramsView() {
   const TMDB_POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w342';
+  const TMDB_LOGO_BASE_URL = 'https://image.tmdb.org/t/p/w45';
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [allPrograms, setAllPrograms] = useState<{ [date: string]: DayPrograms }>({});
   const [loading, setLoading] = useState<boolean>(false);
@@ -58,6 +73,7 @@ function ProgramsView() {
   const [oscarFilterIndex, setOscarFilterIndex] = useState<number>(0);
   const [isOscarFilterActive, setIsOscarFilterActive] = useState<boolean>(false);
   const [oscarModalProgram, setOscarModalProgram] = useState<Program | null>(null);
+  const [isWatchExpanded, setIsWatchExpanded] = useState<boolean>(false);
   const [activePosterIndex, setActivePosterIndex] = useState<number>(0);
   const [lastInteractionTs, setLastInteractionTs] = useState<number>(Date.now());
   const [isPosterOverflowing, setIsPosterOverflowing] = useState<boolean>(true);
@@ -355,6 +371,10 @@ function ProgramsView() {
     }
     prevPosterIndexRef.current = activePosterIndex;
   }, [activePosterIndex, isPosterOverflowing, oscarPosters.length]);
+
+  useEffect(() => {
+    setIsWatchExpanded(false);
+  }, [oscarModalProgram]);
 
   return (
     <div className="programs-view">
@@ -665,7 +685,7 @@ function ProgramsView() {
               onClick={() => setOscarModalProgram(null)}
               aria-label="Close Oscar details"
             >
-              Close
+              ×
             </button>
             <div className="oscar-modal-content">
               {oscarModalProgram.oscar.poster_path && (
@@ -682,6 +702,48 @@ function ProgramsView() {
                 )}
                 {oscarModalProgram.oscar.overview && (
                   <p className="oscar-overview">{oscarModalProgram.oscar.overview}</p>
+                )}
+                {oscarModalProgram.oscar.watch && (
+                  <div className="oscar-watch-group">
+                    <button
+                      type="button"
+                      className="oscar-watch-toggle"
+                      onClick={() => setIsWatchExpanded(prev => !prev)}
+                      aria-expanded={isWatchExpanded}
+                    >
+                      <span>Where to watch (BG)</span>
+                      <span className="oscar-watch-toggle-icon">{isWatchExpanded ? '–' : '+'}</span>
+                    </button>
+                    {isWatchExpanded && (
+                      <div className="oscar-watch-content">
+                        {(['flatrate', 'rent', 'buy'] as const).map((tier) => {
+                          const providers = oscarModalProgram.oscar?.watch?.[tier] || [];
+                          if (!providers.length) return null;
+                          const label = tier === 'flatrate' ? 'Stream' : tier === 'rent' ? 'Rent' : 'Buy';
+                          return (
+                            <div key={tier} className="oscar-watch-tier">
+                              <div className="oscar-watch-tier-label">{label}</div>
+                              <div className="oscar-watch-providers">
+                                {providers.map((provider, idx) => (
+                                  <div key={`${provider.provider_id ?? 'p'}-${idx}`} className="oscar-watch-provider">
+                                    {provider.logo_path && (
+                                      <img
+                                        className="oscar-watch-logo"
+                                        src={`${TMDB_LOGO_BASE_URL}${provider.logo_path}`}
+                                        alt={provider.provider_name || 'Provider logo'}
+                                        loading="lazy"
+                                      />
+                                    )}
+                                    <span className="oscar-watch-name">{provider.provider_name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )}
                 <div className="oscar-category-group">
                   <h4>Oscar Categories</h4>

@@ -214,6 +214,7 @@ async def fetch_programs(date_path: str = "Днес"):
         oscar_titles = []
         oscar_winners = 0
         oscar_total = 0
+        oscar_seen = set()
         oscar_info = ""
         if data.get("programs"):
             for channel_data in data["programs"].values():
@@ -221,18 +222,25 @@ async def fetch_programs(date_path: str = "Днес"):
                     oscar = program.get("oscar")
                     if not oscar:
                         continue
+                    title = program.get("title")
+                    title_en = oscar.get("title_en")
+                    dedupe_key = (title or "").strip().lower(), (title_en or "").strip().lower()
+                    if dedupe_key in oscar_seen:
+                        continue
+                    oscar_seen.add(dedupe_key)
                     oscar_total += 1
                     if oscar.get("winner", 0) > 0:
                         oscar_winners += 1
-                    title_en = oscar.get("title_en")
                     winner_count = oscar.get("winner", 0)
                     nominee_count = oscar.get("nominee", 0)
+                    watch_info = oscar.get("watch")
                     oscar_titles.append(
                         {
-                            "title": program.get("title"),
+                            "title": title,
                             "title_en": title_en,
                             "winner": winner_count,
                             "nominee": nominee_count,
+                            "watch": watch_info,
                         }
                     )
 
@@ -254,8 +262,16 @@ async def fetch_programs(date_path: str = "Днес"):
                 title_en = item.get("title_en")
                 wins = item.get("winner", 0)
                 noms = item.get("nominee", 0)
+                watch = item.get("watch") or {}
+                providers = []
+                for key in ("flatrate", "rent", "buy"):
+                    for entry in watch.get(key, []) or []:
+                        name = entry.get("provider_name")
+                        if name and name not in providers:
+                            providers.append(name)
+                watch_note = f" (Watch: {', '.join(providers)})" if providers else ""
                 display_title = f"{title} / {title_en}" if title_en else title
-                line = f"- {display_title} - {format_counts(wins, noms)}"
+                line = f"- {display_title} - {format_counts(wins, noms)}{watch_note}"
                 if wins > 0:
                     winners_lines.append(line)
                 elif noms > 0:
@@ -297,9 +313,8 @@ async def fetch_programs(date_path: str = "Днес"):
                 "titles": oscar_titles,
             },
             "oscar_info_summary": (
-                f"Oscar summary for {target_date.isoformat()}: "
-                f"{oscar_total} programs, {oscar_winners} winners, "
-                f"{oscar_total - oscar_winners} nominees."
+                f"{target_date.isoformat()}: "
+                f"{oscar_total} movies ({oscar_winners}/{oscar_total - oscar_winners})"
             ),
             "oscar_info": oscar_info,
         }

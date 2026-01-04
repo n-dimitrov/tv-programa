@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Set, Tuple
+
+import requests
 
 
 YEAR_RE = re.compile(r"(19|20)\d{2}")
@@ -43,6 +46,9 @@ class OscarLookup:
         self.movies_path = Path(movies_path)
         self.oscars_path = Path(oscars_path)
         self.enabled = self.movies_path.exists() and self.oscars_path.exists()
+        self._tmdb_api_key = os.getenv("TMDB_API_KEY")
+        self._watch_region = os.getenv("TMDB_WATCH_REGION", "BG")
+        self._watch_cache: Dict[str, Optional[Dict]] = {}
         self._title_index: Dict[str, Set[str]] = {}
         self._title_year_index: Dict[Tuple[str, str], Set[str]] = {}
         self._oscar_info: Dict[str, Dict[str, Set[str]]] = {}
@@ -89,6 +95,29 @@ class OscarLookup:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
 
+    def _fetch_watch_info(self, tmdb_id: str) -> Optional[Dict]:
+        if not tmdb_id or not self._tmdb_api_key:
+            return None
+        if tmdb_id in self._watch_cache:
+            return self._watch_cache[tmdb_id]
+
+        url = f"https://api.themoviedb.org/3/movie/{tmdb_id}/watch/providers"
+        params = {"api_key": self._tmdb_api_key}
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            payload = response.json()
+            region_info = payload.get("results", {}).get(self._watch_region)
+            if region_info:
+                watch_info = {"region": self._watch_region, **region_info}
+            else:
+                watch_info = None
+        except Exception:
+            watch_info = None
+
+        self._watch_cache[tmdb_id] = watch_info
+        return watch_info
+
     def _find_movie_id(self, title: str, description: Optional[str]) -> Optional[str]:
         year = _extract_year(description)
         base_title = _strip_episode_suffix(title)
@@ -121,7 +150,8 @@ class OscarLookup:
             return
 
         movie = self._movies.get(movie_id, {})
-        program["oscar"] = {
+        tmdb_id = movie.get("tmdb_id")
+        oscar_payload = {
             "winner": len(info["winner"]),
             "nominee": len(info["nominee"]),
             "winner_categories": sorted(info["winner"]),
@@ -129,4 +159,11 @@ class OscarLookup:
             "title_en": movie.get("title"),
             "poster_path": movie.get("poster_path"),
             "overview": movie.get("overview"),
+            "tmdb_id": tmdb_id,
         }
+        watch_info = None
+        if tmdb_id:
+            watch_info = self._fetch_watch_info(str(tmdb_id))
+        if watch_info:
+            oscar_payload["watch"] = watch_info
+        program["oscar"] = oscar_payload
