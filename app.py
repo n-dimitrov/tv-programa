@@ -42,6 +42,9 @@ class Channel(BaseModel):
 class ChannelsUpdate(BaseModel):
     channels: List[Channel]
 
+class FetchRequest(BaseModel):
+    date_path: str = "Днес"
+
 class Program(BaseModel):
     time: str
     title: str
@@ -183,12 +186,12 @@ async def get_config():
     }
 
 @app.post("/api/fetch")
-async def fetch_programs(date_path: str = "Днес"):
+async def fetch_programs(request: FetchRequest = FetchRequest()):
     """
     Fetch TV programs for active channels (defaults to TODAY)
 
     Args:
-        date_path: 'Днес' (today - default), 'Вчера' (yesterday), 'Утре' (tomorrow), etc.
+        request: FetchRequest with date_path: 'Днес' (today - default), 'Вчера' (yesterday), 'Утре' (tomorrow), etc.
                   For today: URL is just /tv/{channel}
                   For other dates: /tv/{channel}/{date_path}/
 
@@ -197,15 +200,15 @@ async def fetch_programs(date_path: str = "Днес"):
     """
     try:
         fetcher = ActiveChannelFetcher(CHANNELS_FILE)
-        data = fetcher.fetch_all_programs(date_path=date_path)
+        data = fetcher.fetch_all_programs(date_path=request.date_path)
 
         # Map date_path to actual date
         today = datetime.now().date()
-        if date_path == "Вчера":
+        if request.date_path == "Вчера":
             target_date = today - timedelta(days=1)
-        elif date_path == "Днес":
+        elif request.date_path == "Днес":
             target_date = today
-        elif date_path == "Утре":
+        elif request.date_path == "Утре":
             target_date = today + timedelta(days=1)
         else:
             target_date = today
@@ -317,7 +320,7 @@ async def fetch_programs(date_path: str = "Днес"):
 
         return {
             "status": "success",
-            "message": f"Fetched programs for {date_path}",
+            "message": f"Fetched programs for {request.date_path}",
             "date": target_date.isoformat(),
             "channels_with_programs": data['metadata']['channels_with_programs'],
             "total_channels": data['metadata']['total_channels'],
