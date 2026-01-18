@@ -706,7 +706,7 @@ function ProgramsView() {
                     )}
                     <h3>{channelData.channel.name}</h3>
                     <span className="program-count">
-                      {channelData.programs.reduce((cnt, dp) => cnt + dp.programs.length, 0)} предавания
+                      {channelData.programs.reduce((cnt, dp) => cnt + dp.programs.length, 0)}
                     </span>
                   </div>
                   <button
