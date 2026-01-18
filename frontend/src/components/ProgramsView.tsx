@@ -81,6 +81,12 @@ function ProgramsView() {
   const [isPosterOverflowing, setIsPosterOverflowing] = useState<boolean>(true);
   const posterScrollRef = useRef<HTMLDivElement | null>(null);
   const prevPosterIndexRef = useRef<number>(0);
+  const channelListRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const dateSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const dateFirstProgramRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const scrollRafByChannelRef = useRef<Record<string, number>>({});
+  const dateCarouselRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [activeDateByChannel, setActiveDateByChannel] = useState<Record<string, string>>({});
 
   // Load config, all 7 days of programs at once, and get last 7 days
   useEffect(() => {
@@ -188,6 +194,69 @@ function ProgramsView() {
         newSet.add(channelId);
       }
       return newSet;
+    });
+  };
+
+  const scrollToChannelDate = (channelId: string, date: string) => {
+    const container = channelListRefs.current[channelId];
+    const target =
+      dateFirstProgramRefs.current[`${channelId}-${date}`] ||
+      dateSectionRefs.current[`${channelId}-${date}`];
+    if (!container || !target) return;
+    const header = dateSectionRefs.current[`${channelId}-${date}`];
+    const headerHeight = header?.offsetHeight ?? 0;
+    setActiveDateByChannel(prev => ({ ...prev, [channelId]: date }));
+    ensureDateCarouselVisible(channelId, date);
+    const top = Math.max(0, target.offsetTop - container.offsetTop - headerHeight);
+    container.scrollTo({ top, behavior: 'smooth' });
+  };
+
+  const ensureDateCarouselVisible = (channelId: string, date: string) => {
+    const carousel = dateCarouselRefs.current[channelId];
+    if (!carousel) return;
+    const button = carousel.querySelector<HTMLElement>(`[data-date-carousel="${date}"]`);
+    if (!button) return;
+    if (typeof button.scrollIntoView === 'function') {
+      button.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+      return;
+    }
+    const left = button.offsetLeft;
+    const right = left + button.offsetWidth;
+    const viewLeft = carousel.scrollLeft;
+    const viewRight = viewLeft + carousel.clientWidth;
+    const padding = 8;
+    if (left - padding < viewLeft) {
+      carousel.scrollTo({ left: Math.max(0, left - padding), behavior: 'smooth' });
+    } else if (right + padding > viewRight) {
+      carousel.scrollTo({ left: right - carousel.clientWidth + padding, behavior: 'smooth' });
+    }
+  };
+
+  const handleChannelScroll = (channelId: string) => {
+    const container = channelListRefs.current[channelId];
+    if (!container) return;
+    if (scrollRafByChannelRef.current[channelId]) return;
+    scrollRafByChannelRef.current[channelId] = window.requestAnimationFrame(() => {
+      scrollRafByChannelRef.current[channelId] = 0;
+      const headers = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-date-section="true"]')
+      );
+      if (!headers.length) return;
+      const containerTop = container.scrollTop;
+      let currentDate = headers[0].dataset.date || '';
+      for (const header of headers) {
+        const offset = header.offsetTop - container.offsetTop;
+        if (offset - 4 <= containerTop + header.offsetHeight) {
+          currentDate = header.dataset.date || currentDate;
+        } else {
+          break;
+        }
+      }
+      setActiveDateByChannel(prev => {
+        if (prev[channelId] === currentDate) return prev;
+        ensureDateCarouselVisible(channelId, currentDate);
+        return { ...prev, [channelId]: currentDate };
+      });
     });
   };
 
@@ -623,14 +692,65 @@ function ProgramsView() {
                 </div>
 
                 {isChannelExpanded(channelData.channel.id) && (
-                  <div className="programs-list">
+                  <>
+                  {channelData.programs.length > 1 && (
+                    <div
+                      className="date-carousel-header"
+                      role="tablist"
+                      aria-label="Jump to day"
+                      ref={(el) => {
+                        dateCarouselRefs.current[channelData.channel.id] = el;
+                      }}
+                    >
+                      {channelData.programs.map(datePrograms => {
+                        const activeDate =
+                          activeDateByChannel[channelData.channel.id] ?? channelData.programs[0].date;
+                        const isActive = activeDate === datePrograms.date;
+                        return (
+                          <button
+                            key={`${channelData.channel.id}-${datePrograms.date}-jump`}
+                            type="button"
+                            className={`date-carousel-btn ${isActive ? 'active' : ''}`}
+                            onClick={() => scrollToChannelDate(channelData.channel.id, datePrograms.date)}
+                            aria-pressed={isActive}
+                            title={formatDateDisplay(datePrograms.date)}
+                            data-date-carousel={datePrograms.date}
+                          >
+                            {formatDateDisplay(datePrograms.date, true)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div
+                    className="programs-list"
+                    ref={(el) => {
+                      channelListRefs.current[channelData.channel.id] = el;
+                    }}
+                    onScroll={() => handleChannelScroll(channelData.channel.id)}
+                  >
                   {channelData.programs.map((datePrograms, dateIdx) => (
                     <div key={dateIdx}>
-                      <div className="date-section-header">
+                      <div
+                        className="date-section-header"
+                        ref={(el) => {
+                          dateSectionRefs.current[`${channelData.channel.id}-${datePrograms.date}`] = el;
+                        }}
+                        data-date-section="true"
+                        data-date={datePrograms.date}
+                      >
                         <span>{formatDateDisplay(datePrograms.date)}</span>
                       </div>
                       {sortProgramsByTimeDescending(datePrograms.programs).map((program, idx) => (
-                        <div key={idx} className="program-item">
+                        <div
+                          key={idx}
+                          className="program-item"
+                          ref={(el) => {
+                            if (idx === 0) {
+                              dateFirstProgramRefs.current[`${channelData.channel.id}-${datePrograms.date}`] = el;
+                            }
+                          }}
+                        >
                           <div
                             className={`program-time ${
                               program.oscar?.winner
@@ -684,6 +804,7 @@ function ProgramsView() {
                     </div>
                   ))}
                   </div>
+                  </>
                 )}
               </div>
             ))}
