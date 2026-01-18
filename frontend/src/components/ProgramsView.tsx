@@ -65,6 +65,7 @@ function ProgramsView() {
   const [hiddenChannels, setHiddenChannels] = useState<Set<string>>(new Set());
   const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set());
   type OscarFilterKey = 'oscar' | 'winners' | 'best-picture';
   const OSCAR_FILTERS: { key: OscarFilterKey; label: string }[] = [
     { key: 'oscar', label: 'Номиниран' },
@@ -178,8 +179,24 @@ function ProgramsView() {
     });
   };
 
+  const toggleChannelExpanded = (channelId: string) => {
+    setExpandedChannels(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(channelId)) {
+        newSet.delete(channelId);
+      } else {
+        newSet.add(channelId);
+      }
+      return newSet;
+    });
+  };
+
   const isChannelHidden = (channelId: string): boolean => {
     return hiddenChannels.has(channelId);
+  };
+
+  const isChannelExpanded = (channelId: string): boolean => {
+    return expandedChannels.has(channelId);
   };
 
   const selectAllChannels = () => {
@@ -580,23 +597,33 @@ function ProgramsView() {
               .map(channelData => (
               <div key={channelData.channel.id} className="channel-card">
                 <div className="channel-header">
-                  {channelData.channel.icon && (
-                    <img
-                      src={`${logoBaseUrl}${channelData.channel.icon}`}
-                      alt={channelData.channel.name}
-                      className="channel-icon"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  )}
-                  <h3>{channelData.channel.name}</h3>
-                  <span className="program-count">
-                    {channelData.programs.reduce((cnt, dp) => cnt + dp.programs.length, 0)} предавания
-                  </span>
+                  <div className="channel-header-left" onClick={() => toggleChannelExpanded(channelData.channel.id)}>
+                    {channelData.channel.icon && (
+                      <img
+                        src={`${logoBaseUrl}${channelData.channel.icon}`}
+                        alt={channelData.channel.name}
+                        className="channel-icon"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                    <h3>{channelData.channel.name}</h3>
+                    <span className="program-count">
+                      {channelData.programs.reduce((cnt, dp) => cnt + dp.programs.length, 0)} предавания
+                    </span>
+                  </div>
+                  <button
+                    className="channel-expand-btn"
+                    onClick={() => toggleChannelExpanded(channelData.channel.id)}
+                    aria-label={isChannelExpanded(channelData.channel.id) ? "Collapse" : "Expand"}
+                  >
+                    <span className={`expand-icon ${isChannelExpanded(channelData.channel.id) ? 'expanded' : ''}`}>▼</span>
+                  </button>
                 </div>
 
-                <div className="programs-list">
+                {isChannelExpanded(channelData.channel.id) && (
+                  <div className="programs-list">
                   {channelData.programs.map((datePrograms, dateIdx) => (
                     <div key={dateIdx}>
                       <div className="date-section-header">
@@ -656,7 +683,8 @@ function ProgramsView() {
                       ))}
                     </div>
                   ))}
-                </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

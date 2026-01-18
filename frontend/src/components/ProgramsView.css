@@ -394,7 +394,53 @@
   padding: 15px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  transition: background 0.2s ease;
+}
+
+.channel-header:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+.channel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.channel-expand-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  min-width: 40px;
+}
+
+.channel-expand-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+.channel-expand-btn .expand-icon {
+  transition: transform 0.3s ease;
+  display: inline-block;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.channel-expand-btn .expand-icon.expanded {
+  transform: rotate(180deg);
 }
 
 .channel-icon {
