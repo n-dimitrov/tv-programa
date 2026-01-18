@@ -86,6 +86,7 @@ function ProgramsView() {
   const dateFirstProgramRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRafByChannelRef = useRef<Record<string, number>>({});
   const dateCarouselRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const prevExpandedChannelsRef = useRef<Set<string> | null>(null);
   const [activeDateByChannel, setActiveDateByChannel] = useState<Record<string, string>>({});
 
   // Load config, all 7 days of programs at once, and get last 7 days
@@ -462,6 +463,23 @@ function ProgramsView() {
   useEffect(() => {
     setIsWatchExpanded(false);
   }, [oscarModalProgram]);
+
+  useEffect(() => {
+    const trimmed = searchTerm.trim();
+    const shouldExpand = !!trimmed || isOscarFilterActive;
+    if (shouldExpand) {
+      if (!prevExpandedChannelsRef.current) {
+        prevExpandedChannelsRef.current = new Set(expandedChannels);
+      }
+      const channelIds = Object.values(getCombinedChannelPrograms()).map(ch => ch.channel.id);
+      setExpandedChannels(new Set(channelIds));
+      return;
+    }
+    if (prevExpandedChannelsRef.current) {
+      setExpandedChannels(new Set(prevExpandedChannelsRef.current));
+      prevExpandedChannelsRef.current = null;
+    }
+  }, [searchTerm, allPrograms, selectedDates, isOscarFilterActive, oscarFilterIndex]);
 
   return (
     <div className="programs-view">
