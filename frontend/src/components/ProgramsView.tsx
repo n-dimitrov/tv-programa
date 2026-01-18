@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import './ProgramsView.css';
 import { API_URL } from '../config';
 
@@ -53,6 +53,14 @@ interface DayPrograms {
   };
 }
 
+type OscarFilterKey = 'oscar' | 'winners' | 'best-picture';
+
+const OSCAR_FILTERS: { key: OscarFilterKey; label: string }[] = [
+  { key: 'oscar', label: 'Номиниран' },
+  { key: 'winners', label: 'Oscar' },
+  { key: 'best-picture', label: 'Best Picture ★' }
+];
+
 function ProgramsView() {
   const TMDB_POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w342';
   const TMDB_LOGO_BASE_URL = 'https://image.tmdb.org/t/p/w45';
@@ -66,12 +74,6 @@ function ProgramsView() {
   const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set());
-  type OscarFilterKey = 'oscar' | 'winners' | 'best-picture';
-  const OSCAR_FILTERS: { key: OscarFilterKey; label: string }[] = [
-    { key: 'oscar', label: 'Номиниран' },
-    { key: 'winners', label: 'Oscar' },
-    { key: 'best-picture', label: 'Best Picture ★' }
-  ];
   const [oscarFilterIndex, setOscarFilterIndex] = useState<number>(0);
   const [isOscarFilterActive, setIsOscarFilterActive] = useState<boolean>(false);
   const [oscarModalProgram, setOscarModalProgram] = useState<Program | null>(null);
@@ -275,7 +277,7 @@ function ProgramsView() {
 
   const unselectAllChannels = () => {
     const allChannelIds = new Set(
-      Object.values(getCombinedChannelPrograms()).map(ch => ch.channel.id)
+      Object.values(combinedChannelPrograms).map(ch => ch.channel.id)
     );
     setHiddenChannels(allChannelIds);
   };
@@ -284,16 +286,16 @@ function ProgramsView() {
     return !!allPrograms[date];
   };
 
-  const filterProgramsBySearch = (programs: Program[]): Program[] => {
+  const filterProgramsBySearch = useCallback((programs: Program[]): Program[] => {
     if (!searchTerm.trim()) return programs;
     const searchLower = searchTerm.toLowerCase();
     return programs.filter(program =>
       program.title.toLowerCase().includes(searchLower) ||
       (program.description && program.description.toLowerCase().includes(searchLower))
     );
-  };
+  }, [searchTerm]);
 
-  const matchesOscarFilter = (program: Program, filterKey: OscarFilterKey): boolean => {
+  const matchesOscarFilter = useCallback((program: Program, filterKey: OscarFilterKey): boolean => {
     if (!program.oscar) return false;
 
     if (filterKey === 'oscar') return true;
@@ -302,16 +304,16 @@ function ProgramsView() {
       return program.oscar.winner_categories.includes('Best Picture');
     }
     return true;
-  };
+  }, []);
 
-  const filterPrograms = (programs: Program[]): Program[] => {
+  const filterPrograms = useCallback((programs: Program[]): Program[] => {
     let filtered = filterProgramsBySearch(programs);
     if (isOscarFilterActive) {
       const effectiveFilter = OSCAR_FILTERS[oscarFilterIndex].key;
       filtered = filtered.filter(program => matchesOscarFilter(program, effectiveFilter));
     }
     return filtered;
-  };
+  }, [filterProgramsBySearch, isOscarFilterActive, oscarFilterIndex, matchesOscarFilter]);
 
   const countOscarPrograms = (filterKey: OscarFilterKey): number => {
     const seen = new Set<string>();
@@ -352,41 +354,43 @@ function ProgramsView() {
     return posters;
   };
 
-  const getCombinedChannelPrograms = () => {
-    const combinedData: { [channelId: string]: { channel: any; programs: { date: string; programs: Program[] }[] } } = {};
+  const combinedChannelPrograms = useMemo(
+    () => {
+      const combinedData: { [channelId: string]: { channel: any; programs: { date: string; programs: Program[] }[] } } = {};
 
-    // Sort selected dates in descending order (most recent first)
-    const sortedDates = [...selectedDates].sort().reverse();
+      // Sort selected dates in descending order (most recent first)
+      const sortedDates = [...selectedDates].sort().reverse();
 
-    sortedDates.forEach(date => {
-      if (allPrograms[date]) {
-        Object.entries(allPrograms[date].programs).forEach(([channelId, channelData]) => {
-          if (!combinedData[channelId]) {
-            combinedData[channelId] = {
-              channel: channelData.channel,
-              programs: []
-            };
-          }
-          const filteredPrograms = filterPrograms(channelData.programs);
-          if (filteredPrograms.length > 0) {
-            combinedData[channelId].programs.push({
-              date: date,
-              programs: filteredPrograms
-            });
-          }
-        });
-      }
-    });
+      sortedDates.forEach(date => {
+        if (allPrograms[date]) {
+          Object.entries(allPrograms[date].programs).forEach(([channelId, channelData]) => {
+            if (!combinedData[channelId]) {
+              combinedData[channelId] = {
+                channel: channelData.channel,
+                programs: []
+              };
+            }
+            const filteredPrograms = filterPrograms(channelData.programs);
+            if (filteredPrograms.length > 0) {
+              combinedData[channelId].programs.push({
+                date: date,
+                programs: filteredPrograms
+              });
+            }
+          });
+        }
+      });
 
-    // Remove channels with no programs after search filtering
-    return Object.entries(combinedData)
-      .filter(([_, channelData]) => channelData.programs.length > 0)
-      .reduce((acc, [channelId, channelData]) => {
-        acc[channelId] = channelData;
-        return acc;
-      }, {} as typeof combinedData);
-  };
-
+      // Remove channels with no programs after search filtering
+      return Object.entries(combinedData)
+        .filter(([_, channelData]) => channelData.programs.length > 0)
+        .reduce((acc, [channelId, channelData]) => {
+          acc[channelId] = channelData;
+          return acc;
+        }, {} as typeof combinedData);
+    },
+    [allPrograms, selectedDates, filterPrograms]
+  );
   const oscarPosters = getOscarPosterPrograms();
   const activePoster = oscarPosters[activePosterIndex];
 
@@ -471,15 +475,20 @@ function ProgramsView() {
       if (!prevExpandedChannelsRef.current) {
         prevExpandedChannelsRef.current = new Set(expandedChannels);
       }
-      const channelIds = Object.values(getCombinedChannelPrograms()).map(ch => ch.channel.id);
-      setExpandedChannels(new Set(channelIds));
+      const channelIds = Object.values(combinedChannelPrograms).map(ch => ch.channel.id);
+      const isFullyExpanded =
+        expandedChannels.size === channelIds.length &&
+        channelIds.every(id => expandedChannels.has(id));
+      if (!isFullyExpanded) {
+        setExpandedChannels(new Set(channelIds));
+      }
       return;
     }
     if (prevExpandedChannelsRef.current) {
       setExpandedChannels(new Set(prevExpandedChannelsRef.current));
       prevExpandedChannelsRef.current = null;
     }
-  }, [searchTerm, allPrograms, selectedDates, isOscarFilterActive, oscarFilterIndex]);
+  }, [searchTerm, isOscarFilterActive, combinedChannelPrograms, expandedChannels]);
 
   return (
     <div className="programs-view">
@@ -644,7 +653,7 @@ function ProgramsView() {
                         Премахни всички
                       </button>
                     </div>
-                    {Object.values(getCombinedChannelPrograms()).map(channelData => (
+                    {Object.values(combinedChannelPrograms).map(channelData => (
                       <button
                         key={channelData.channel.id}
                         className={`channel-toggle-btn ${isChannelHidden(channelData.channel.id) ? 'hidden' : 'visible'}`}
@@ -679,7 +688,7 @@ function ProgramsView() {
         <div className="programs-container">
 
           <div className="channels-list">
-            {Object.values(getCombinedChannelPrograms())
+            {Object.values(combinedChannelPrograms)
               .filter(ch => !isChannelHidden(ch.channel.id))
               .map(channelData => (
               <div key={channelData.channel.id} className="channel-card">
