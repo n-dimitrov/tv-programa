@@ -76,14 +76,32 @@ class TVProgramFetcher:
             full_text = link_elem.get_text(strip=True)
             link = link_elem.get('href', '')
 
-            # Split title and description
-            title, description = self._split_title_description(full_text)
+            # Extract title from <strong> tag if present
+            strong_elem = link_elem.find('strong')
+            if strong_elem:
+                title = strong_elem.get_text(strip=True)
+                # Get description as remaining text after strong tag
+                # Clone the element to extract text without strong content
+                temp_elem = link_elem.__copy__()
+                strong_temp = temp_elem.find('strong')
+                if strong_temp:
+                    strong_temp.decompose()
+                description = temp_elem.get_text(strip=True)
+                # Clean up leading separators (comma, dash, spaces)
+                description = description.lstrip(',').lstrip('-').strip()
+                description = description if description else None
+            else:
+                # Fallback to old parsing method if no <strong> tag
+                title, description = self._split_title_description(full_text)
+
+            # Construct full from title + description
+            full = title + (' ' + description if description else '')
 
             program = {
                 'time': time_text,
                 'title': title,
                 'description': description,
-                'full': full_text
+                'full': full
             }
             programs.append(program)
 
