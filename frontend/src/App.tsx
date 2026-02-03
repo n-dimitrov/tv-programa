@@ -2,9 +2,11 @@ import React from 'react';
 import './App.css';
 import ProgramsView from './components/ProgramsView';
 import ChannelManager from './components/ChannelManager';
+import OscarManager from './components/OscarManager';
 
 function App() {
   const isChannelsView = window.location.pathname.startsWith('/channels');
+  const isOscarsView = window.location.pathname.startsWith('/oscars');
 
   return (
     <div className="App">
@@ -18,7 +20,7 @@ function App() {
       </header>
 
       <main className="app-main">
-        {isChannelsView ? <ChannelManager /> : <ProgramsView />}
+        {isOscarsView ? <OscarManager /> : isChannelsView ? <ChannelManager /> : <ProgramsView />}
       </main>
 
       <footer className="app-footer">

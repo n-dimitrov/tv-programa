@@ -42,9 +42,11 @@ class OscarLookup:
         self,
         movies_path: str = "data/movies-min.json",
         oscars_path: str = "data/oscars-min.json",
+        blacklist_path: str = "data/oscar_blacklist.json",
     ) -> None:
         self.movies_path = Path(movies_path)
         self.oscars_path = Path(oscars_path)
+        self.blacklist_path = Path(blacklist_path)
         self.enabled = self.movies_path.exists() and self.oscars_path.exists()
         self._tmdb_api_key = os.getenv("TMDB_API_KEY")
         self._watch_region = os.getenv("TMDB_WATCH_REGION", "BG")
@@ -53,9 +55,11 @@ class OscarLookup:
         self._title_year_index: Dict[Tuple[str, str], Set[str]] = {}
         self._oscar_info: Dict[str, Dict[str, Set[str]]] = {}
         self._movies: Dict[str, Dict] = {}
+        self._blacklist: Set[str] = set()
 
         if self.enabled:
             self._load()
+            self._load_blacklist()
 
     def _load(self) -> None:
         movies = self._read_json(self.movies_path)
@@ -90,10 +94,26 @@ class OscarLookup:
         if winner:
             info["winner"].add(category)
 
+    def _load_blacklist(self) -> None:
+        """Load blacklist of excluded program identifiers"""
+        if not self.blacklist_path.exists():
+            return
+        try:
+            data = self._read_json(self.blacklist_path)
+            self._blacklist = set(data.get("excluded", []))
+        except Exception:
+            self._blacklist = set()
+
     @staticmethod
     def _read_json(path: Path) -> Dict:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
+
+    @staticmethod
+    def _make_program_key(title: str, channel_id: str = "") -> str:
+        """Create a unique key for a program to use in blacklist"""
+        normalized = _normalize_title(title)
+        return f"{channel_id}:{normalized}" if channel_id else normalized
 
     def _fetch_watch_info(self, tmdb_id: str) -> Optional[Dict]:
         if not tmdb_id or not self._tmdb_api_key:
@@ -125,21 +145,33 @@ class OscarLookup:
         if not key:
             return None
 
-        if not year:
+        # If year is available, only match with year (strict matching)
+        if year:
+            ids = self._title_year_index.get((year, key))
+            if ids and len(ids) == 1:
+                return next(iter(ids))
+            # If year is present but doesn't match, don't fallback
             return None
 
-        ids = self._title_year_index.get((year, key))
+        # Fallback: match by title only if NO year found and title is unique
+        ids = self._title_index.get(key)
         if ids and len(ids) == 1:
             return next(iter(ids))
+
         return None
 
-    def annotate_program(self, program: Dict) -> None:
+    def annotate_program(self, program: Dict, channel_id: str = "") -> None:
         """Add Oscar winner/nominee info to a program dict if matched."""
         if not self.enabled:
             return
 
         title = program.get("title") or ""
         description = program.get("description") or program.get("full") or ""
+
+        # Check if this program is blacklisted
+        program_key = self._make_program_key(title, channel_id)
+        if program_key in self._blacklist:
+            return
 
         movie_id = self._find_movie_id(title, description)
         if not movie_id:

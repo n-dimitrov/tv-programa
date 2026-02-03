@@ -75,7 +75,7 @@ class ActiveChannelFetcher:
 
             if programs and self.oscar_lookup.enabled:
                 for program in programs:
-                    self.oscar_lookup.annotate_program(program)
+                    self.oscar_lookup.annotate_program(program, channel_id=channel_id)
 
             if programs:
                 result['programs'][channel_id] = {

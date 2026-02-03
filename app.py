@@ -461,6 +461,139 @@ async def get_status():
         "loaded_files_count": len([d for d in available_dates if d["available"]])
     }
 
+@app.get("/api/oscars")
+async def get_oscar_programs():
+    """Get all programs with Oscar annotations from the last 7 days, grouped by movie"""
+    data = get_cached_7days()
+    if not data:
+        data = load_7days_aggregate()
+        if data:
+            set_cached_7days(data)
+
+    if not data:
+        data = build_7days_data()
+        if data:
+            set_cached_7days(data)
+
+    # Group by movie (title + title_en)
+    movies_map = {}
+
+    for date, date_data in data.items():
+        programs_by_channel = date_data.get("programs", {})
+        for channel_id, channel_data in programs_by_channel.items():
+            # Channel info is nested under 'channel' key
+            channel_info = channel_data.get("channel", {})
+            channel_name = channel_info.get("name", "Unknown")
+            channel_icon = channel_info.get("icon", "")
+            for program in channel_data.get("programs", []):
+                oscar = program.get("oscar")
+                if not oscar:
+                    continue
+
+                title = program.get("title", "")
+                title_en = oscar.get("title_en", "")
+                year = oscar.get("year")
+
+                # Group by title
+                movie_key = (title.strip().lower(), (title_en or "").strip().lower())
+
+                if movie_key not in movies_map:
+                    movies_map[movie_key] = {
+                        "title": title,
+                        "title_en": title_en,
+                        "year": year,
+                        "winner": oscar.get("winner", 0),
+                        "nominee": oscar.get("nominee", 0),
+                        "winner_categories": oscar.get("winner_categories", []),
+                        "nominee_categories": oscar.get("nominee_categories", []),
+                        "poster_path": oscar.get("poster_path"),
+                        "broadcasts": []
+                    }
+
+                # Add this broadcast
+                movies_map[movie_key]["broadcasts"].append({
+                    "channel_id": channel_id,
+                    "channel_name": channel_name,
+                    "channel_icon": build_logo_url(channel_icon),
+                    "time": program.get("time"),
+                    "date": date,
+                    "description": program.get("description")
+                })
+
+    # Convert to list and sort
+    oscar_programs = list(movies_map.values())
+    oscar_programs.sort(key=lambda x: (x["winner"], x["nominee"]), reverse=True)
+
+    return {"programs": oscar_programs, "total": len(oscar_programs)}
+
+class ExcludeRequest(BaseModel):
+    title: str
+    channel_id: Optional[str] = None
+
+@app.post("/api/oscars/exclude")
+async def exclude_oscar_program(request: ExcludeRequest):
+    """Add a program to the Oscar blacklist"""
+    from oscars_lookup import OscarLookup
+
+    blacklist_file = Path("data/oscar_blacklist.json")
+    data = storage.read_json(str(blacklist_file)) or {"excluded": []}
+
+    lookup = OscarLookup()
+    program_key = lookup._make_program_key(request.title, request.channel_id or "")
+
+    if program_key not in data["excluded"]:
+        data["excluded"].append(program_key)
+        storage.write_json(str(blacklist_file), data)
+
+    # Refresh 7-day data to apply the exclusion
+    refresh_7days_aggregate()
+
+    return {"success": True, "excluded": program_key}
+
+@app.delete("/api/oscars/exclude")
+async def unexclude_oscar_program(request: ExcludeRequest):
+    """Remove a program from the Oscar blacklist"""
+    from oscars_lookup import OscarLookup
+
+    blacklist_file = Path("data/oscar_blacklist.json")
+    data = storage.read_json(str(blacklist_file)) or {"excluded": []}
+
+    lookup = OscarLookup()
+    program_key = lookup._make_program_key(request.title, request.channel_id or "")
+
+    if program_key in data["excluded"]:
+        data["excluded"].remove(program_key)
+        storage.write_json(str(blacklist_file), data)
+
+    return {"success": True, "unexcluded": program_key}
+
+@app.get("/api/oscars/blacklist")
+async def get_oscar_blacklist():
+    """Get all blacklisted programs"""
+    blacklist_file = Path("data/oscar_blacklist.json")
+    data = storage.read_json(str(blacklist_file)) or {"excluded": []}
+
+    # Parse blacklist entries
+    entries = []
+    for entry in data.get("excluded", []):
+        if ":" in entry:
+            channel_id, title = entry.split(":", 1)
+            entries.append({
+                "key": entry,
+                "title": title,
+                "channel_id": channel_id,
+                "scope": "channel"
+            })
+        else:
+            entries.append({
+                "key": entry,
+                "title": entry,
+                "channel_id": None,
+                "scope": "all"
+            })
+
+    return {"blacklist": entries, "total": len(entries)}
+
 # Serve React static files and handle SPA routing
 frontend_build_dir = Path("frontend/build")
 if frontend_build_dir.exists():
