@@ -507,6 +507,8 @@ async def get_oscar_programs():
                         "winner_categories": oscar.get("winner_categories", []),
                         "nominee_categories": oscar.get("nominee_categories", []),
                         "poster_path": oscar.get("poster_path"),
+                        "overview": oscar.get("overview"),
+                        "watch": oscar.get("watch"),
                         "broadcasts": []
                     }
 
