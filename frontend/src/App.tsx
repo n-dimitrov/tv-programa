@@ -13,7 +13,7 @@ function App() {
       <header className="app-header">
         <div className="app-container">
           <div className="app-header-text">
-            <h1>7DaysTV</h1>
+            <h1><a href="/" className="header-link">7DaysTV</a></h1>
             <p className="app-header-subtitle">Програмата за последните 7 дни</p>
           </div>
         </div>

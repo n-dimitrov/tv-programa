@@ -499,7 +499,7 @@ function ProgramsView() {
           onTouchStart={() => setLastInteractionTs(Date.now())}
         >
           <div className="oscar-strip-header">
-            <h3>OSCAR Подбор</h3>
+            <h3><a href="/oscars" className="oscar-header-link">OSCAR Подбор</a></h3>
             <div className="oscar-switch" role="group" aria-label="Oscar filter">
               <button
                 type="button"

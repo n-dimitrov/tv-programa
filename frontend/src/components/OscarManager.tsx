@@ -246,7 +246,6 @@ const OscarManager: React.FC = () => {
           </div>
         </div>
         <div className="header-actions">
-          <a href="/" className="back-link">← Back to Programs</a>
           {isAdmin && (
             <button
               className="toggle-excluded-button"

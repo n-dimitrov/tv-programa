@@ -26,6 +26,16 @@
   font-size: 28px;
 }
 
+.app-header .header-link {
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.app-header .header-link:hover {
+  opacity: 0.9;
+}
+
 .app-header-text {
   display: flex;
   flex-direction: column;
