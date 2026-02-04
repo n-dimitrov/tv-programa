@@ -10,6 +10,13 @@ interface Broadcast {
   description?: string;
 }
 
+interface WatchProvider {
+  logo_path?: string;
+  provider_id?: number;
+  provider_name?: string;
+  display_priority?: number;
+}
+
 interface OscarProgram {
   title: string;
   title_en: string;
@@ -19,7 +26,15 @@ interface OscarProgram {
   winner_categories: string[];
   nominee_categories: string[];
   poster_path?: string;
+  overview?: string;
   broadcasts: Broadcast[];
+  watch?: {
+    region?: string;
+    link?: string;
+    flatrate?: WatchProvider[];
+    rent?: WatchProvider[];
+    buy?: WatchProvider[];
+  };
 }
 
 interface BlacklistEntry {
@@ -38,6 +53,8 @@ const OscarManager: React.FC = () => {
   const [showExcluded, setShowExcluded] = useState(false);
   const [blacklist, setBlacklist] = useState<BlacklistEntry[]>([]);
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
+  const [modalProgram, setModalProgram] = useState<OscarProgram | null>(null);
+  const [isWatchExpanded, setIsWatchExpanded] = useState<boolean>(false);
 
   // Check if admin mode is enabled via URL parameter
   const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
@@ -162,10 +179,17 @@ const OscarManager: React.FC = () => {
   };
 
 
+  const TMDB_POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w342';
+  const TMDB_LOGO_BASE_URL = 'https://image.tmdb.org/t/p/w45';
+
   const getPosterUrl = (posterPath?: string): string | undefined => {
     if (!posterPath) return undefined;
     return `https://image.tmdb.org/t/p/w185${posterPath}`;
   };
+
+  useEffect(() => {
+    setIsWatchExpanded(false);
+  }, [modalProgram]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -238,7 +262,12 @@ const OscarManager: React.FC = () => {
         <div className="oscar-list">
           {programs.map((program, index) => (
             <div key={index} className="oscar-item">
-              <div className="oscar-poster-small">
+              <div
+                className="oscar-poster-small"
+                onClick={() => setModalProgram(program)}
+                style={{ cursor: 'pointer' }}
+                title="Click to view details"
+              >
                 {program.poster_path ? (
                   <img
                     src={getPosterUrl(program.poster_path)}
@@ -379,6 +408,120 @@ const OscarManager: React.FC = () => {
         <div className="empty-state">
           <p>No Oscar-nominated programs found in the last 7 days.</p>
           <p className="hint">Check back after fetching new program data.</p>
+        </div>
+      )}
+
+      {modalProgram && (
+        <div
+          className="oscar-modal-overlay"
+          onClick={() => setModalProgram(null)}
+        >
+          <div
+            className="oscar-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="oscar-modal-close"
+              onClick={() => setModalProgram(null)}
+              aria-label="Close Oscar details"
+            >
+              ×
+            </button>
+            <div className="oscar-modal-content">
+              {modalProgram.poster_path && (
+                <img
+                  className="oscar-poster"
+                  src={`${TMDB_POSTER_BASE_URL}${modalProgram.poster_path}`}
+                  alt={modalProgram.title_en || modalProgram.title}
+                />
+              )}
+              <div className="oscar-details">
+                <h3>{modalProgram.title}</h3>
+                {modalProgram.title_en && (
+                  <div className="oscar-title-en">
+                    {modalProgram.title_en}
+                    {modalProgram.year && ` (${modalProgram.year})`}
+                  </div>
+                )}
+                {modalProgram.overview && (
+                  <p className="oscar-overview">{modalProgram.overview}</p>
+                )}
+                {modalProgram.watch && (
+                  <div className="oscar-watch-group">
+                    <button
+                      type="button"
+                      className="oscar-watch-toggle"
+                      onClick={() => setIsWatchExpanded(prev => !prev)}
+                      aria-expanded={isWatchExpanded}
+                    >
+                      <span>Where to watch (BG)</span>
+                      <span className="oscar-watch-toggle-icon">{isWatchExpanded ? '–' : '+'}</span>
+                    </button>
+                    {isWatchExpanded && (
+                      <div className="oscar-watch-content">
+                        {(['flatrate', 'rent', 'buy'] as const).map((tier) => {
+                          const providers = modalProgram.watch?.[tier] || [];
+                          if (!providers.length) return null;
+                          const label = tier === 'flatrate' ? 'Stream' : tier === 'rent' ? 'Rent' : 'Buy';
+                          return (
+                            <div key={tier} className="oscar-watch-tier">
+                              <div className="oscar-watch-tier-label">{label}</div>
+                              <div className="oscar-watch-providers">
+                                {providers.map((provider, idx) => (
+                                  <div key={`${provider.provider_id ?? 'p'}-${idx}`} className="oscar-watch-provider">
+                                    {provider.logo_path && (
+                                      <img
+                                        className="oscar-watch-logo"
+                                        src={`${TMDB_LOGO_BASE_URL}${provider.logo_path}`}
+                                        alt={provider.provider_name || 'Provider logo'}
+                                        loading="lazy"
+                                      />
+                                    )}
+                                    <span className="oscar-watch-name">{provider.provider_name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="oscar-category-group">
+                  <h4>Oscar Categories</h4>
+                  <div className="oscar-category-grid">
+                    {[
+                      'Best Picture',
+                      'Best Director',
+                      'Best Actor',
+                      'Best Actress',
+                      'Best Supporting Actor',
+                      'Best Supporting Actress',
+                      'Best Original Screenplay',
+                      'Best Adapted Screenplay'
+                    ].map((category) => {
+                      const isWinner = modalProgram.winner_categories.includes(category);
+                      const isNominee = modalProgram.nominee_categories.includes(category);
+                      const statusClass = isWinner
+                        ? 'oscar-winner'
+                        : isNominee
+                          ? 'oscar-nominee'
+                          : 'oscar-disabled';
+                      return (
+                        <span key={category} className={`oscar-category ${statusClass}`}>
+                          {category}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
