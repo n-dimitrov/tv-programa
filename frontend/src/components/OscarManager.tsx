@@ -23,10 +23,12 @@ interface OscarProgram {
 }
 
 interface BlacklistEntry {
-  key: string;
   title: string;
-  channel_id: string | null;
-  scope: 'channel' | 'all';
+  scope: 'broadcast' | 'channel' | 'all';
+  channel_id?: string;
+  date?: string;
+  time?: string;
+  description?: string;
 }
 
 const OscarManager: React.FC = () => {
@@ -34,10 +36,11 @@ const OscarManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showExcluded, setShowExcluded] = useState(false);
-  const [fetching, setFetching] = useState(false);
-  const [fetchMessage, setFetchMessage] = useState<string | null>(null);
   const [blacklist, setBlacklist] = useState<BlacklistEntry[]>([]);
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
+
+  // Check if admin mode is enabled via URL parameter
+  const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
 
   const fetchOscarPrograms = async () => {
     try {
@@ -81,33 +84,63 @@ const OscarManager: React.FC = () => {
     }
   };
 
-  const handleExclude = async (program: OscarProgram, channelId?: string) => {
-    const channelInfo = channelId ? ` on ${program.broadcasts.find(b => b.channel_id === channelId)?.channel_name}` : ' on all channels';
-    if (!window.confirm(`Exclude "${program.title}"${channelInfo} from Oscar matches?\n\nNote: You need to click "Refresh Today's Programs" to see updated results.`)) {
+  const handleExclude = async (
+    program: OscarProgram,
+    scope: 'broadcast' | 'channel',
+    broadcast?: Broadcast
+  ) => {
+    let confirmMsg = '';
+    if (scope === 'broadcast' && broadcast) {
+      confirmMsg = `Exclude this specific broadcast?\n\n"${program.title}"\n${broadcast.channel_name} • ${formatDate(broadcast.date)} • ${broadcast.time}\n\nNote: Go to /channels page and fetch programs to see updated results.`;
+    } else if (scope === 'channel' && broadcast) {
+      confirmMsg = `Exclude "${program.title}" from all airings on ${broadcast.channel_name}?\n\nNote: Go to /channels page and fetch programs to see updated results.`;
+    }
+
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
     try {
+      const body: any = {
+        title: program.title,
+        scope: scope
+      };
+
+      if (broadcast) {
+        body.channel_id = broadcast.channel_id;
+        if (scope === 'broadcast') {
+          body.date = broadcast.date;
+          body.time = broadcast.time;
+          body.description = broadcast.description;
+        }
+      }
+
       const response = await fetch('/api/oscars/exclude', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: program.title,
-          channel_id: channelId || undefined
-        })
+        body: JSON.stringify(body)
       });
 
       if (!response.ok) throw new Error('Failed to exclude program');
 
-      alert(`✓ Excluded "${program.title}"${channelInfo}.\n\nClick "Refresh Today's Programs" to update the list.`);
+      const scopeLabel = scope === 'broadcast' ? 'this broadcast' : `all on ${broadcast?.channel_name}`;
+      alert(`✓ Excluded ${scopeLabel}.\n\nGo to /channels page and click "Fetch Today" or "Fetch Yesterday" to update the list.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to exclude program');
     }
   };
 
   const handleUnexclude = async (entry: BlacklistEntry) => {
-    const scope = entry.scope === 'all' ? 'all channels' : `channel ${entry.channel_id}`;
-    if (!window.confirm(`Remove "${entry.title}" from blacklist (${scope})?`)) {
+    let scopeLabel = '';
+    if (entry.scope === 'all') {
+      scopeLabel = 'all channels';
+    } else if (entry.scope === 'channel') {
+      scopeLabel = `channel ${entry.channel_id}`;
+    } else if (entry.scope === 'broadcast') {
+      scopeLabel = `broadcast on ${entry.channel_id} at ${entry.date} ${entry.time}`;
+    }
+
+    if (!window.confirm(`Remove "${entry.title}" from blacklist (${scopeLabel})?`)) {
       return;
     }
 
@@ -115,55 +148,19 @@ const OscarManager: React.FC = () => {
       const response = await fetch('/api/oscars/exclude', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: entry.title,
-          channel_id: entry.channel_id || undefined
-        })
+        body: JSON.stringify(entry)
       });
 
       if (!response.ok) throw new Error('Failed to unexclude program');
 
       // Refresh blacklist
       await fetchBlacklist();
-      alert(`✓ Removed "${entry.title}" from blacklist.\n\nClick "Refresh Today's Programs" to see it reappear.`);
+      alert(`✓ Removed "${entry.title}" from blacklist.\n\nGo to /channels page and fetch programs to see it reappear.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to unexclude program');
     }
   };
 
-  const handleRefetchToday = async () => {
-    if (!window.confirm('Fetch fresh TV programs for TODAY?\n\nThis will scrape the latest data and apply all exclusions.')) {
-      return;
-    }
-
-    try {
-      setFetching(true);
-      setFetchMessage(null);
-
-      const response = await fetch('/api/fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date_path: 'Днес' })
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch programs');
-
-      const data = await response.json();
-      setFetchMessage(`✓ Fetched ${data.metadata?.channels_with_programs || 0} channels. Refreshing Oscar list...`);
-
-      // Wait a bit for the data to be processed
-      setTimeout(async () => {
-        await fetchOscarPrograms();
-        setFetchMessage('✓ Oscar list updated!');
-        setTimeout(() => setFetchMessage(null), 3000);
-      }, 1000);
-    } catch (err) {
-      setFetchMessage(`✗ Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      setTimeout(() => setFetchMessage(null), 5000);
-    } finally {
-      setFetching(false);
-    }
-  };
 
   const getPosterUrl = (posterPath?: string): string | undefined => {
     if (!posterPath) return undefined;
@@ -205,6 +202,11 @@ const OscarManager: React.FC = () => {
     <div className="oscar-manager">
       <div className="oscar-header">
         <h2>🏆 Oscar Movies on TV</h2>
+        {isAdmin && (
+          <div className="admin-badge">
+            🔐 Admin Mode
+          </div>
+        )}
         <div className="oscar-summary">
           <div className="summary-stat">
             <div className="stat-number">{programs.length}</div>
@@ -221,25 +223,15 @@ const OscarManager: React.FC = () => {
         </div>
         <div className="header-actions">
           <a href="/" className="back-link">← Back to Programs</a>
-          <button
-            className="refresh-button"
-            onClick={handleRefetchToday}
-            disabled={fetching}
-          >
-            {fetching ? '⏳ Fetching...' : '🔄 Refresh Today\'s Programs'}
-          </button>
-          <button
-            className="toggle-excluded-button"
-            onClick={handleToggleExcluded}
-          >
-            {showExcluded ? 'Show Oscar Movies' : 'Show False Positives'}
-          </button>
+          {isAdmin && (
+            <button
+              className="toggle-excluded-button"
+              onClick={handleToggleExcluded}
+            >
+              {showExcluded ? 'Show Oscar Movies' : 'Show False Positives'}
+            </button>
+          )}
         </div>
-        {fetchMessage && (
-          <div className={`fetch-message ${fetchMessage.startsWith('✗') ? 'error' : 'success'}`}>
-            {fetchMessage}
-          </div>
-        )}
       </div>
 
       {!showExcluded ? (
@@ -316,24 +308,27 @@ const OscarManager: React.FC = () => {
                           <div className="broadcast-description">{broadcast.description}</div>
                         )}
                       </div>
-                      <button
-                        className="exclude-button-inline"
-                        onClick={() => handleExclude(program, broadcast.channel_id)}
-                        title="Exclude this broadcast"
-                      >
-                        ✖
-                      </button>
+                      {isAdmin && (
+                        <div className="exclude-buttons">
+                          <button
+                            className="exclude-button-broadcast"
+                            onClick={() => handleExclude(program, 'broadcast', broadcast)}
+                            title="Exclude this specific time slot"
+                          >
+                            ✖ This Time Slot
+                          </button>
+                          <button
+                            className="exclude-button-channel"
+                            onClick={() => handleExclude(program, 'channel', broadcast)}
+                            title="Exclude all airings on this channel"
+                          >
+                            ✖ All on {broadcast.channel_name}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-
-                <button
-                  className="exclude-button-all"
-                  onClick={() => handleExclude(program)}
-                  title="Exclude from all channels"
-                >
-                  ✖ Exclude from All Channels
-                </button>
               </div>
             </div>
           ))}
@@ -352,8 +347,12 @@ const OscarManager: React.FC = () => {
                     <div className="blacklist-scope">
                       {entry.scope === 'all' ? (
                         <span className="scope-badge all">All Channels</span>
-                      ) : (
+                      ) : entry.scope === 'channel' ? (
                         <span className="scope-badge channel">Channel: {entry.channel_id}</span>
+                      ) : (
+                        <span className="scope-badge broadcast">
+                          {entry.channel_id} • {entry.date} • {entry.time}
+                        </span>
                       )}
                     </div>
                   </div>

@@ -55,7 +55,7 @@ class OscarLookup:
         self._title_year_index: Dict[Tuple[str, str], Set[str]] = {}
         self._oscar_info: Dict[str, Dict[str, Set[str]]] = {}
         self._movies: Dict[str, Dict] = {}
-        self._blacklist: Set[str] = set()
+        self._blacklist: List[Dict] = []
 
         if self.enabled:
             self._load()
@@ -95,25 +95,49 @@ class OscarLookup:
             info["winner"].add(category)
 
     def _load_blacklist(self) -> None:
-        """Load blacklist of excluded program identifiers"""
+        """Load blacklist of excluded programs"""
         if not self.blacklist_path.exists():
             return
         try:
             data = self._read_json(self.blacklist_path)
-            self._blacklist = set(data.get("excluded", []))
+            # Store as list of dicts instead of set
+            self._blacklist = data.get("excluded", [])
         except Exception:
-            self._blacklist = set()
+            self._blacklist = []
 
     @staticmethod
     def _read_json(path: Path) -> Dict:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
 
-    @staticmethod
-    def _make_program_key(title: str, channel_id: str = "") -> str:
-        """Create a unique key for a program to use in blacklist"""
-        normalized = _normalize_title(title)
-        return f"{channel_id}:{normalized}" if channel_id else normalized
+    def _is_blacklisted(self, title: str, channel_id: str, date: str, time: str) -> bool:
+        """Check if a program is blacklisted"""
+        title_normalized = _normalize_title(title)
+
+        for entry in self._blacklist:
+            # Check title match
+            if _normalize_title(entry.get("title", "")) != title_normalized:
+                continue
+
+            scope = entry.get("scope", "all")
+
+            # Scope: all - matches everywhere
+            if scope == "all":
+                return True
+
+            # Scope: channel - matches this channel
+            if scope == "channel":
+                if entry.get("channel_id") == channel_id:
+                    return True
+
+            # Scope: broadcast - exact match
+            if scope == "broadcast":
+                if (entry.get("channel_id") == channel_id and
+                    entry.get("date") == date and
+                    entry.get("time") == time):
+                    return True
+
+        return False
 
     def _fetch_watch_info(self, tmdb_id: str) -> Optional[Dict]:
         if not tmdb_id or not self._tmdb_api_key:
@@ -160,7 +184,7 @@ class OscarLookup:
 
         return None
 
-    def annotate_program(self, program: Dict, channel_id: str = "") -> None:
+    def annotate_program(self, program: Dict, channel_id: str = "", date: str = "", time: str = "") -> None:
         """Add Oscar winner/nominee info to a program dict if matched."""
         if not self.enabled:
             return
@@ -168,9 +192,12 @@ class OscarLookup:
         title = program.get("title") or ""
         description = program.get("description") or program.get("full") or ""
 
+        # Use program's time if not provided
+        if not time:
+            time = program.get("time", "")
+
         # Check if this program is blacklisted
-        program_key = self._make_program_key(title, channel_id)
-        if program_key in self._blacklist:
+        if self._is_blacklisted(title, channel_id, date, time):
             return
 
         movie_id = self._find_movie_id(title, description)

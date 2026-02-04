@@ -16,6 +16,8 @@ function ChannelManager() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
   const [logoBaseUrl, setLogoBaseUrl] = useState<string>('');
+  const [fetching, setFetching] = useState<boolean>(false);
+  const [fetchMessage, setFetchMessage] = useState<string | null>(null);
 
   // Load config and channels
   useEffect(() => {
@@ -113,6 +115,35 @@ function ChannelManager() {
     }
   };
 
+  const handleFetchPrograms = async (datePath: string) => {
+    const dateLabel = datePath === 'Днес' ? 'TODAY' : 'YESTERDAY';
+    if (!window.confirm(`Fetch TV programs for ${dateLabel}?\n\nThis will scrape the latest data from all active channels.`)) {
+      return;
+    }
+
+    try {
+      setFetching(true);
+      setFetchMessage(null);
+
+      const response = await fetch(`${API_URL}/api/fetch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date_path: datePath })
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch programs');
+
+      const data = await response.json();
+      setFetchMessage(`✓ Fetched ${data.metadata?.channels_with_programs || 0} channels for ${dateLabel}.`);
+      setTimeout(() => setFetchMessage(null), 5000);
+    } catch (err) {
+      setFetchMessage(`✗ Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setTimeout(() => setFetchMessage(null), 5000);
+    } finally {
+      setFetching(false);
+    }
+  };
+
   const filteredChannels = channels.filter(ch =>
     ch.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -135,6 +166,11 @@ function ChannelManager() {
       </div>
 
       {error && <div className="error-message">{error}</div>}
+      {fetchMessage && (
+        <div className={`fetch-message ${fetchMessage.startsWith('✗') ? 'error' : 'success'}`}>
+          {fetchMessage}
+        </div>
+      )}
 
       <div className="manager-controls">
         <input
@@ -144,6 +180,22 @@ function ChannelManager() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input"
         />
+        <div className="fetch-buttons">
+          <button
+            onClick={() => handleFetchPrograms('Днес')}
+            disabled={fetching}
+            className="fetch-button fetch-today"
+          >
+            {fetching ? '⏳ Fetching...' : '🔄 Fetch Today'}
+          </button>
+          <button
+            onClick={() => handleFetchPrograms('Вчера')}
+            disabled={fetching}
+            className="fetch-button fetch-yesterday"
+          >
+            {fetching ? '⏳ Fetching...' : '🔄 Fetch Yesterday'}
+          </button>
+        </div>
         <button
           onClick={saveAllChannels}
           disabled={saving}

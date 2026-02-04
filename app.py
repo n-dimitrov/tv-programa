@@ -199,9 +199,6 @@ async def fetch_programs(request: FetchRequest = FetchRequest()):
         Fetched programs data
     """
     try:
-        fetcher = ActiveChannelFetcher(CHANNELS_FILE)
-        data = fetcher.fetch_all_programs(date_path=request.date_path)
-
         # Map date_path to actual date
         today = datetime.now().date()
         if request.date_path == "Вчера":
@@ -212,6 +209,9 @@ async def fetch_programs(request: FetchRequest = FetchRequest()):
             target_date = today + timedelta(days=1)
         else:
             target_date = today
+
+        fetcher = ActiveChannelFetcher(CHANNELS_FILE)
+        data = fetcher.fetch_all_programs(date_path=request.date_path, target_date=target_date.isoformat())
 
         # Save to daily file
         save_programs_for_date(data, target_date.isoformat())
@@ -528,44 +528,101 @@ async def get_oscar_programs():
 
 class ExcludeRequest(BaseModel):
     title: str
+    scope: str  # "broadcast", "channel", or "all"
     channel_id: Optional[str] = None
+    date: Optional[str] = None
+    time: Optional[str] = None
+    description: Optional[str] = None
 
 @app.post("/api/oscars/exclude")
 async def exclude_oscar_program(request: ExcludeRequest):
     """Add a program to the Oscar blacklist"""
-    from oscars_lookup import OscarLookup
-
     blacklist_file = Path("data/oscar_blacklist.json")
     data = storage.read_json(str(blacklist_file)) or {"excluded": []}
 
-    lookup = OscarLookup()
-    program_key = lookup._make_program_key(request.title, request.channel_id or "")
+    # Create exclusion entry
+    entry = {
+        "title": request.title,
+        "scope": request.scope
+    }
 
-    if program_key not in data["excluded"]:
-        data["excluded"].append(program_key)
-        storage.write_json(str(blacklist_file), data)
+    if request.scope in ["channel", "broadcast"]:
+        entry["channel_id"] = request.channel_id
 
-    # Refresh 7-day data to apply the exclusion
-    refresh_7days_aggregate()
+    if request.scope == "broadcast":
+        entry["date"] = request.date
+        entry["time"] = request.time
+        if request.description:
+            entry["description"] = request.description
 
-    return {"success": True, "excluded": program_key}
+    # Check if already excluded
+    from oscars_lookup import _normalize_title
+    title_normalized = _normalize_title(request.title)
+
+    for existing in data["excluded"]:
+        if _normalize_title(existing.get("title", "")) != title_normalized:
+            continue
+        if existing.get("scope") != request.scope:
+            continue
+        if request.scope == "channel" and existing.get("channel_id") == request.channel_id:
+            return {"success": True, "message": "Already excluded", "entry": entry}
+        if request.scope == "broadcast":
+            if (existing.get("channel_id") == request.channel_id and
+                existing.get("date") == request.date and
+                existing.get("time") == request.time):
+                return {"success": True, "message": "Already excluded", "entry": entry}
+        if request.scope == "all":
+            return {"success": True, "message": "Already excluded", "entry": entry}
+
+    # Add to blacklist
+    data["excluded"].append(entry)
+    storage.write_json(str(blacklist_file), data)
+
+    return {"success": True, "excluded": entry}
 
 @app.delete("/api/oscars/exclude")
 async def unexclude_oscar_program(request: ExcludeRequest):
     """Remove a program from the Oscar blacklist"""
-    from oscars_lookup import OscarLookup
+    from oscars_lookup import _normalize_title
 
     blacklist_file = Path("data/oscar_blacklist.json")
     data = storage.read_json(str(blacklist_file)) or {"excluded": []}
 
-    lookup = OscarLookup()
-    program_key = lookup._make_program_key(request.title, request.channel_id or "")
+    title_normalized = _normalize_title(request.title)
 
-    if program_key in data["excluded"]:
-        data["excluded"].remove(program_key)
-        storage.write_json(str(blacklist_file), data)
+    # Find and remove matching entry
+    new_excluded = []
+    removed = None
 
-    return {"success": True, "unexcluded": program_key}
+    for entry in data["excluded"]:
+        if _normalize_title(entry.get("title", "")) != title_normalized:
+            new_excluded.append(entry)
+            continue
+
+        if entry.get("scope") != request.scope:
+            new_excluded.append(entry)
+            continue
+
+        # Check scope-specific match
+        should_remove = False
+        if request.scope == "all":
+            should_remove = True
+        elif request.scope == "channel":
+            should_remove = entry.get("channel_id") == request.channel_id
+        elif request.scope == "broadcast":
+            should_remove = (entry.get("channel_id") == request.channel_id and
+                           entry.get("date") == request.date and
+                           entry.get("time") == request.time)
+
+        if should_remove:
+            removed = entry
+        else:
+            new_excluded.append(entry)
+
+    data["excluded"] = new_excluded
+    storage.write_json(str(blacklist_file), data)
+
+    return {"success": True, "removed": removed}
 
 @app.get("/api/oscars/blacklist")
 async def get_oscar_blacklist():
@@ -573,26 +630,7 @@ async def get_oscar_blacklist():
     blacklist_file = Path("data/oscar_blacklist.json")
     data = storage.read_json(str(blacklist_file)) or {"excluded": []}
 
-    # Parse blacklist entries
-    entries = []
-    for entry in data.get("excluded", []):
-        if ":" in entry:
-            channel_id, title = entry.split(":", 1)
-            entries.append({
-                "key": entry,
-                "title": title,
-                "channel_id": channel_id,
-                "scope": "channel"
-            })
-        else:
-            entries.append({
-                "key": entry,
-                "title": entry,
-                "channel_id": None,
-                "scope": "all"
-            })
-
-    return {"blacklist": entries, "total": len(entries)}
+    return {"blacklist": data.get("excluded", []), "total": len(data.get("excluded", []))}
 
 # Serve React static files and handle SPA routing
 frontend_build_dir = Path("frontend/build")

@@ -6,7 +6,7 @@ Fetches yesterday's programs and generates a consolidated JSON file
 
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict
 from fetch_tv_program import TVProgramFetcher
 from oscars_lookup import OscarLookup
@@ -37,20 +37,35 @@ class ActiveChannelFetcher:
             print(f"Error: Invalid JSON in {self.channels_file}")
             return []
 
-    def fetch_all_programs(self, date_path: str = "Вчера") -> Dict:
+    def fetch_all_programs(self, date_path: str = "Вчера", target_date: str = "") -> Dict:
         """
         Fetch programs for all active channels
 
         Args:
             date_path: Date path component ('Вчера' for yesterday, 'Днес' for today)
+            target_date: ISO date string (YYYY-MM-DD) for blacklist checking
 
         Returns:
             Dictionary with metadata and programs grouped by channel
         """
+        # Calculate target date if not provided
+        if not target_date:
+            today = datetime.now().date()
+            if date_path == "Вчера":
+                calc_date = today - timedelta(days=1)
+            elif date_path == "Днес":
+                calc_date = today
+            elif date_path == "Утре":
+                calc_date = today + timedelta(days=1)
+            else:
+                calc_date = today
+            target_date = calc_date.isoformat()
+
         result = {
             'metadata': {
                 'timestamp': datetime.now().isoformat(),
                 'date': date_path,
+                'target_date': target_date,
                 'total_channels': len(self.channels),
                 'channels_with_programs': 0
             },
@@ -62,7 +77,7 @@ class ActiveChannelFetcher:
             return result
 
         print(f"Fetching programs for {len(self.channels)} active channels...")
-        print(f"Date: {date_path}\n")
+        print(f"Date: {date_path} ({target_date})\n")
 
         for idx, channel in enumerate(self.channels, 1):
             channel_id = channel.get('id')
@@ -75,7 +90,12 @@ class ActiveChannelFetcher:
 
             if programs and self.oscar_lookup.enabled:
                 for program in programs:
-                    self.oscar_lookup.annotate_program(program, channel_id=channel_id)
+                    self.oscar_lookup.annotate_program(
+                        program,
+                        channel_id=channel_id,
+                        date=target_date,
+                        time=program.get('time', '')
+                    )
 
             if programs:
                 result['programs'][channel_id] = {
