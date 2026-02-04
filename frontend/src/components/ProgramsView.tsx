@@ -427,12 +427,14 @@ function ProgramsView() {
 
   useEffect(() => {
     if (!oscarPosters.length) return;
+    // Stop auto-scroll if search is active (poster was clicked to filter)
+    if (searchTerm.trim()) return;
     const interval = setInterval(() => {
       if (Date.now() - lastInteractionTs < 10000) return;
       setActivePosterIndex(prev => (prev + 1) % oscarPosters.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [lastInteractionTs, oscarPosters.length]);
+  }, [lastInteractionTs, oscarPosters.length, searchTerm]);
 
   useEffect(() => {
     if (!posterScrollRef.current) return;
