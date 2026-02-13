@@ -1172,7 +1172,17 @@
 }
 
 .oscar-scanner-match-row {
-  animation: scannerMatchHighlight 1.2s ease-out;
+  animation: scannerMatchHighlight 0.6s ease-out;
+}
+
+.oscar-scanner-excluded-row {
+  opacity: 0.4;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.oscar-scanner-excluded-row td {
+  color: #94a3b8;
 }
 
 @keyframes scannerMatchHighlight {

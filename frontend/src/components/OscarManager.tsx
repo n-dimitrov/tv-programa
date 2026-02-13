@@ -47,10 +47,12 @@ interface ScannerMatch {
   date: string;
   time: string;
   channel_name: string;
+  channel_id: string;
   program_title: string;
   matched_title_en: string;
   matched_title_bg: string;
   year: number;
+  isExcluded?: boolean;
 }
 
 interface ScannerProgress {
@@ -117,6 +119,7 @@ const OscarManager: React.FC = () => {
     key: 'year' | 'title_en' | 'title';
     direction: 'asc' | 'desc';
   }>({ key: 'year', direction: 'desc' });
+  const [totalCatalogCount, setTotalCatalogCount] = useState<number | null>(null);
 
   // Check if admin mode is enabled via URL parameter
   const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
@@ -138,7 +141,19 @@ const OscarManager: React.FC = () => {
 
   useEffect(() => {
     fetchOscarPrograms();
+    fetchTotalCatalogCount();
   }, []);
+
+  const fetchTotalCatalogCount = async () => {
+    try {
+      const response = await fetch('/api/oscars/catalog');
+      if (!response.ok) return;
+      const data = await response.json();
+      setTotalCatalogCount(data.programs?.length || 0);
+    } catch (err) {
+      console.error('Failed to fetch catalog count:', err);
+    }
+  };
 
   const fetchBlacklist = async () => {
     try {
@@ -362,6 +377,18 @@ const OscarManager: React.FC = () => {
         throw new Error('Oscar catalog is empty');
       }
 
+      // Fetch blacklist
+      let currentBlacklist: BlacklistEntry[] = [];
+      try {
+        const blacklistResponse = await fetch('/api/oscars/blacklist');
+        if (blacklistResponse.ok) {
+          const blacklistData = await blacklistResponse.json();
+          currentBlacklist = blacklistData.blacklist || [];
+        }
+      } catch (err) {
+        console.error('Failed to fetch blacklist for scanner:', err);
+      }
+
       const titleIndex = new Map<string, OscarListRow[]>();
       for (const movie of catalog) {
         for (const candidate of [movie.title, movie.title_en]) {
@@ -411,11 +438,24 @@ const OscarManager: React.FC = () => {
 
             if (candidates.length !== 1) continue;
             const matchMovie = candidates[0];
+
+            // Check if excluded
+            const isExcluded = currentBlacklist.some((entry) => {
+              if (entry.title !== matchMovie.title) return false;
+              if (entry.scope === 'all') return true;
+              if (entry.scope === 'channel' && entry.channel_id === channelId) return true;
+              if (entry.scope === 'broadcast' &&
+                  entry.channel_id === channelId &&
+                  entry.date === date &&
+                  entry.time === program.time) return true;
+              return false;
+            });
+
             setScanProgress({
               processed,
               total: totalPrograms,
               channel: channelName,
-              program: `🏆 ${programTitle}`,
+              program: isExcluded ? `⚠️ ${programTitle}` : `🏆 ${programTitle}`,
             });
             const matchId = `${date}-${program.time || ''}-${channelName}-${programTitle}`;
             setLatestScanMatchId(matchId);
@@ -424,14 +464,16 @@ const OscarManager: React.FC = () => {
                 date,
                 time: program.time || '',
                 channel_name: channelName,
+                channel_id: channelId,
                 program_title: programTitle,
                 matched_title_en: matchMovie.title_en || '',
                 matched_title_bg: matchMovie.title || '',
                 year: matchMovie.year || 0,
+                isExcluded,
               },
               ...prev,
             ]);
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 300));
           }
         }
       }
@@ -501,6 +543,10 @@ const OscarManager: React.FC = () => {
           <div className="summary-stat">
             <div className="stat-number">{totalNominations}</div>
             <div className="stat-label">Total Nominations</div>
+          </div>
+          <div className="summary-stat">
+            <div className="stat-number">{totalCatalogCount ?? '…'}</div>
+            <div className="stat-label">Unique Titles</div>
           </div>
         </div>
         <div className="header-actions">
@@ -1035,8 +1081,8 @@ const OscarManager: React.FC = () => {
                 <div className="oscar-list-table-wrapper">
                   <table className="oscar-list-table oscar-scanner-table">
                     <colgroup>
-                      <col style={{ width: '90px' }} />
-                      <col style={{ width: '54px' }} />
+                      <col style={{ width: '110px' }} />
+                      <col style={{ width: '80px' }} />
                       <col style={{ width: '110px' }} />
                       <col />
                       <col />
@@ -1053,15 +1099,21 @@ const OscarManager: React.FC = () => {
                     <tbody>
                       {scanMatches.map((item, index) => {
                         const rowId = `${item.date}-${item.time}-${item.channel_name}-${item.program_title}`;
+                        const rowClass = [
+                          rowId === latestScanMatchId ? 'oscar-scanner-match-row' : '',
+                          item.isExcluded ? 'oscar-scanner-excluded-row' : ''
+                        ].filter(Boolean).join(' ');
                         return (
                         <tr
                           key={`${item.date}-${item.time}-${item.channel_name}-${index}`}
-                          className={rowId === latestScanMatchId ? 'oscar-scanner-match-row' : ''}
+                          className={rowClass}
                         >
                           <td>{item.date}</td>
                           <td>{item.time || '-'}</td>
                           <td>{item.channel_name}</td>
-                          <td className="oscar-title-cell" title={item.program_title}>{item.program_title}</td>
+                          <td className="oscar-title-cell" title={item.program_title}>
+                            {item.isExcluded && '⚠️ '}{item.program_title}
+                          </td>
                           <td className="oscar-title-cell" title={`${item.matched_title_en} / ${item.matched_title_bg}`}>
                             {item.matched_title_en} / {item.matched_title_bg} ({item.year})
                           </td>
