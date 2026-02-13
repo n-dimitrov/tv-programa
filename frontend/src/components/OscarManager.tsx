@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './OscarManager.css';
 
 interface Broadcast {
@@ -37,6 +37,12 @@ interface OscarProgram {
   };
 }
 
+interface OscarListRow {
+  title: string;
+  title_en: string;
+  year: number;
+}
+
 interface BlacklistEntry {
   title: string;
   scope: 'broadcast' | 'channel' | 'all';
@@ -55,6 +61,16 @@ const OscarManager: React.FC = () => {
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
   const [modalProgram, setModalProgram] = useState<OscarProgram | null>(null);
   const [isWatchExpanded, setIsWatchExpanded] = useState<boolean>(false);
+  const [isListDialogOpen, setIsListDialogOpen] = useState<boolean>(false);
+  const [listSearchTerm, setListSearchTerm] = useState<string>('');
+  const [showAllTitles, setShowAllTitles] = useState<boolean>(false);
+  const [allTitles, setAllTitles] = useState<OscarListRow[]>([]);
+  const [loadingAllTitles, setLoadingAllTitles] = useState<boolean>(false);
+  const [allTitlesError, setAllTitlesError] = useState<string | null>(null);
+  const [listSort, setListSort] = useState<{
+    key: 'year' | 'title_en' | 'title';
+    direction: 'asc' | 'desc';
+  }>({ key: 'year', direction: 'desc' });
 
   // Check if admin mode is enabled via URL parameter
   const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
@@ -182,6 +198,77 @@ const OscarManager: React.FC = () => {
   const TMDB_POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w342';
   const TMDB_LOGO_BASE_URL = 'https://image.tmdb.org/t/p/w45';
 
+  useEffect(() => {
+    if (!showAllTitles || allTitles.length > 0 || loadingAllTitles) return;
+
+    const fetchAllTitles = async () => {
+      try {
+        setLoadingAllTitles(true);
+        setAllTitlesError(null);
+        const response = await fetch('/api/oscars/catalog');
+        if (!response.ok) throw new Error('Failed to fetch full Oscar list');
+        const data = await response.json();
+        setAllTitles(data.programs || []);
+      } catch (err) {
+        setAllTitlesError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoadingAllTitles(false);
+      }
+    };
+
+    fetchAllTitles();
+  }, [showAllTitles, allTitles.length, loadingAllTitles]);
+
+  const listSourcePrograms = useMemo<OscarListRow[]>(() => {
+    if (showAllTitles) return allTitles;
+    return programs.map((program) => ({
+      title: program.title,
+      title_en: program.title_en || '',
+      year: Number(program.year) || 0,
+    }));
+  }, [showAllTitles, allTitles, programs]);
+
+  const sortedListPrograms = useMemo(() => {
+    const term = listSearchTerm.trim().toLowerCase();
+    const filtered = !term
+      ? listSourcePrograms
+      : listSourcePrograms.filter((program) => {
+      return (
+        String(program.year).includes(term) ||
+        program.title.toLowerCase().includes(term) ||
+        program.title_en.toLowerCase().includes(term)
+      );
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      let result = 0;
+      if (listSort.key === 'year') {
+        result = a.year - b.year;
+      } else if (listSort.key === 'title_en') {
+        result = a.title_en.localeCompare(b.title_en, 'en', { sensitivity: 'base' });
+      } else {
+        result = a.title.localeCompare(b.title, 'bg', { sensitivity: 'base' });
+      }
+      return listSort.direction === 'asc' ? result : -result;
+    });
+
+    return sorted;
+  }, [listSourcePrograms, listSearchTerm, listSort]);
+
+  const handleListSort = (key: 'year' | 'title_en' | 'title') => {
+    setListSort((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const getSortIndicator = (key: 'year' | 'title_en' | 'title') => {
+    if (listSort.key !== key) return '↕';
+    return listSort.direction === 'asc' ? '↑' : '↓';
+  };
+
   const getPosterUrl = (posterPath?: string): string | undefined => {
     if (!posterPath) return undefined;
     return `https://image.tmdb.org/t/p/w185${posterPath}`;
@@ -190,6 +277,17 @@ const OscarManager: React.FC = () => {
   useEffect(() => {
     setIsWatchExpanded(false);
   }, [modalProgram]);
+
+  useEffect(() => {
+    if (!isListDialogOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsListDialogOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isListDialogOpen]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -246,6 +344,13 @@ const OscarManager: React.FC = () => {
           </div>
         </div>
         <div className="header-actions">
+          <button
+            type="button"
+            className="oscar-list-link"
+            onClick={() => setIsListDialogOpen(true)}
+          >
+            Open titles list
+          </button>
           {isAdmin && (
             <button
               className="toggle-excluded-button"
@@ -519,6 +624,116 @@ const OscarManager: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isListDialogOpen && (
+        <div
+          className="oscar-modal-overlay"
+          onClick={() => setIsListDialogOpen(false)}
+        >
+          <div
+            className="oscar-list-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Oscar titles table"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="oscar-modal-close"
+              onClick={() => setIsListDialogOpen(false)}
+              aria-label="Close Oscar list"
+            >
+              ×
+            </button>
+
+            <div className="oscar-list-dialog-content">
+              <h3>Oscar Titles</h3>
+              <div className="oscar-list-toolbar">
+                <label className="oscar-list-switch">
+                  <input
+                    type="checkbox"
+                    checked={showAllTitles}
+                    onChange={(e) => setShowAllTitles(e.target.checked)}
+                  />
+                  <span className="oscar-list-switch-track" aria-hidden="true">
+                    <span className="oscar-list-switch-thumb" />
+                  </span>
+                  <span className="oscar-list-switch-text">
+                    All: {showAllTitles ? 'On' : 'Off'}
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  className="oscar-list-search"
+                  placeholder="Search by year, English title or Bulgarian title"
+                  value={listSearchTerm}
+                  onChange={(e) => setListSearchTerm(e.target.value)}
+                />
+              </div>
+
+              {loadingAllTitles && showAllTitles ? (
+                <div className="oscar-list-empty">Loading full Oscar list...</div>
+              ) : allTitlesError && showAllTitles ? (
+                <div className="oscar-list-empty">Error: {allTitlesError}</div>
+              ) : (
+                <div className="oscar-list-table-wrapper">
+                  <table className="oscar-list-table">
+                    <colgroup>
+                      <col className="oscar-col-year" />
+                      <col className="oscar-col-title-en" />
+                      <col className="oscar-col-title-bg" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>
+                          <button
+                            type="button"
+                            className="oscar-list-sort-button"
+                            onClick={() => handleListSort('year')}
+                          >
+                            Year {getSortIndicator('year')}
+                          </button>
+                        </th>
+                        <th>
+                          <button
+                            type="button"
+                            className="oscar-list-sort-button"
+                            onClick={() => handleListSort('title_en')}
+                          >
+                            English Title {getSortIndicator('title_en')}
+                          </button>
+                        </th>
+                        <th>
+                          <button
+                            type="button"
+                            className="oscar-list-sort-button"
+                            onClick={() => handleListSort('title')}
+                          >
+                            Bulgarian Title {getSortIndicator('title')}
+                          </button>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedListPrograms.map((program, index) => (
+                        <tr key={`${program.title_en}-${program.year}-${index}`}>
+                          <td>{program.year}</td>
+                          <td className="oscar-title-cell" title={program.title_en}>{program.title_en}</td>
+                          <td className="oscar-title-cell" title={program.title}>{program.title}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {sortedListPrograms.length === 0 && (
+                <div className="oscar-list-empty">No movies match your search.</div>
+              )}
             </div>
           </div>
         </div>

@@ -528,6 +528,48 @@ async def get_oscar_programs():
 
     return {"programs": oscar_programs, "total": len(oscar_programs)}
 
+@app.get("/api/oscars/catalog")
+async def get_oscar_catalog():
+    """Get full Oscar movie catalog (year, English title, Bulgarian title)."""
+    movies_path = Path("data/movies-min.json")
+    movies_data: Dict[str, Dict] = {}
+    try:
+        if movies_path.exists():
+            with movies_path.open("r", encoding="utf-8") as f:
+                movies_data = json.load(f) or {}
+    except Exception:
+        movies_data = {}
+
+    programs = []
+    for movie in movies_data.values():
+        title_en = (movie.get("title") or "").strip()
+        title_bg = (movie.get("title_bg") or "").strip()
+        year_raw = movie.get("year")
+        try:
+            year = int(year_raw)
+        except (TypeError, ValueError):
+            year = 0
+
+        if not title_en and not title_bg:
+            continue
+
+        programs.append({
+            "year": year,
+            "title_en": title_en,
+            "title": title_bg,
+        })
+
+    programs.sort(
+        key=lambda x: (
+            x.get("year", 0),
+            (x.get("title_en") or "").lower(),
+            (x.get("title") or "").lower(),
+        ),
+        reverse=True
+    )
+
+    return {"programs": programs, "total": len(programs)}
+
 class ExcludeRequest(BaseModel):
     title: str
     scope: str  # "broadcast", "channel", or "all"
