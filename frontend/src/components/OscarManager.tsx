@@ -106,6 +106,7 @@ const OscarManager: React.FC = () => {
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanMatches, setScanMatches] = useState<ScannerMatch[]>([]);
+  const [latestScanMatchId, setLatestScanMatchId] = useState<string>('');
   const [scanProgress, setScanProgress] = useState<ScannerProgress>({
     processed: 0,
     total: 0,
@@ -410,8 +411,15 @@ const OscarManager: React.FC = () => {
 
             if (candidates.length !== 1) continue;
             const matchMovie = candidates[0];
+            setScanProgress({
+              processed,
+              total: totalPrograms,
+              channel: channelName,
+              program: `🏆 ${programTitle}`,
+            });
+            const matchId = `${date}-${program.time || ''}-${channelName}-${programTitle}`;
+            setLatestScanMatchId(matchId);
             setScanMatches((prev) => [
-              ...prev,
               {
                 date,
                 time: program.time || '',
@@ -421,7 +429,9 @@ const OscarManager: React.FC = () => {
                 matched_title_bg: matchMovie.title || '',
                 year: matchMovie.year || 0,
               },
+              ...prev,
             ]);
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
         }
       }
@@ -434,6 +444,7 @@ const OscarManager: React.FC = () => {
 
   const clearScannerResults = () => {
     setScanMatches([]);
+    setLatestScanMatchId('');
     setScanError(null);
     setScanProgress({ processed: 0, total: 0, channel: '', program: '' });
   };
@@ -807,7 +818,16 @@ const OscarManager: React.FC = () => {
             </button>
 
             <div className="oscar-list-dialog-content">
-              <h3>Oscar Titles</h3>
+              <div className="oscar-list-header">
+                <h3>🎬 Oscar Titles</h3>
+                <span className="oscar-list-count-badge">
+                  {showAllTitles
+                    ? listSourcePrograms.length > 0
+                      ? `${listSourcePrograms.length} titles`
+                      : '…'
+                    : `${listSourcePrograms.length} on TV`}
+                </span>
+              </div>
               <div className="oscar-list-toolbar">
                 <label className="oscar-list-switch">
                   <input
@@ -819,22 +839,46 @@ const OscarManager: React.FC = () => {
                     <span className="oscar-list-switch-thumb" />
                   </span>
                   <span className="oscar-list-switch-text">
-                    All: {showAllTitles ? 'On' : 'Off'}
+                    {showAllTitles ? 'Full catalog' : 'On TV only'}
                   </span>
                 </label>
-                <input
-                  type="text"
-                  className="oscar-list-search"
-                  placeholder="Search by year, English title or Bulgarian title"
-                  value={listSearchTerm}
-                  onChange={(e) => setListSearchTerm(e.target.value)}
-                />
+                <div className="oscar-list-search-wrapper">
+                  <span className="oscar-list-search-icon">🔍</span>
+                  <input
+                    type="text"
+                    className="oscar-list-search"
+                    placeholder="Search year, English or Bulgarian title…"
+                    value={listSearchTerm}
+                    onChange={(e) => setListSearchTerm(e.target.value)}
+                  />
+                  {listSearchTerm && (
+                    <button
+                      type="button"
+                      className="oscar-list-search-clear"
+                      onClick={() => setListSearchTerm('')}
+                      aria-label="Clear search"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </div>
 
               {loadingAllTitles && showAllTitles ? (
-                <div className="oscar-list-empty">Loading full Oscar list...</div>
+                <div className="oscar-list-empty">
+                  <span className="oscar-list-empty-icon">⏳</span>
+                  Loading full Oscar list…
+                </div>
               ) : allTitlesError && showAllTitles ? (
-                <div className="oscar-list-empty">Error: {allTitlesError}</div>
+                <div className="oscar-list-empty oscar-list-empty-error">
+                  <span className="oscar-list-empty-icon">⚠️</span>
+                  {allTitlesError}
+                </div>
+              ) : sortedListPrograms.length === 0 ? (
+                <div className="oscar-list-empty">
+                  <span className="oscar-list-empty-icon">🔎</span>
+                  No movies match your search.
+                </div>
               ) : (
                 <div className="oscar-list-table-wrapper">
                   <table className="oscar-list-table">
@@ -887,8 +931,14 @@ const OscarManager: React.FC = () => {
                 </div>
               )}
 
-              {sortedListPrograms.length === 0 && (
-                <div className="oscar-list-empty">No movies match your search.</div>
+              {sortedListPrograms.length > 0 && (
+                <div className="oscar-list-footer">
+                  Showing {sortedListPrograms.length}
+                  {listSearchTerm.trim() ? ` of ${listSourcePrograms.length}` : ''} titles
+                  {listSort.key !== 'year' || listSort.direction !== 'desc'
+                    ? ` · sorted by ${listSort.key === 'year' ? 'year' : listSort.key === 'title_en' ? 'English title' : 'Bulgarian title'} ${listSort.direction === 'asc' ? '↑' : '↓'}`
+                    : ''}
+                </div>
               )}
             </div>
           </div>
@@ -917,10 +967,10 @@ const OscarManager: React.FC = () => {
             </button>
 
             <div className="oscar-scanner-content">
-              <h3>Scanner</h3>
-              <p className="oscar-scanner-subtitle">
-                Scan all channels and programs from the last 7 days using title-only matching.
-              </p>
+              <div className="oscar-scanner-header">
+                <h3>📡 Scanner</h3>
+                <span className="oscar-scanner-desc">Scan 7-day programs for Oscar title matches</span>
+              </div>
 
               <div className="oscar-scanner-toolbar">
                 <div className="oscar-scanner-actions">
@@ -930,61 +980,104 @@ const OscarManager: React.FC = () => {
                     onClick={runScanner}
                     disabled={isScanning}
                   >
-                    {isScanning ? 'Scanning...' : 'Scan'}
+                    {isScanning ? '⏳ Scanning…' : '▶ Scan'}
                   </button>
-                  <button
-                    type="button"
-                    className="oscar-clear-button"
-                    onClick={clearScannerResults}
-                    disabled={isScanning && scanMatches.length === 0}
-                  >
-                    Clear
-                  </button>
+                  {(scanMatches.length > 0 || scanError) && (
+                    <button
+                      type="button"
+                      className="oscar-clear-button"
+                      onClick={clearScannerResults}
+                      disabled={isScanning}
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
-                <div className="oscar-scanner-stats">
-                  <span>{scanProgress.processed}/{scanProgress.total} checked</span>
-                  <span>{scanMatches.length} matches</span>
-                </div>
+                {(isScanning || scanProgress.total > 0) && (
+                  <div className="oscar-scanner-stats">
+                    <span className="oscar-scanner-stat-pill">
+                      {scanProgress.processed}/{scanProgress.total} checked
+                    </span>
+                    <span className="oscar-scanner-stat-pill oscar-scanner-stat-matches">
+                      {scanMatches.length} match{scanMatches.length !== 1 ? 'es' : ''}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div className="oscar-scanner-progress">
-                <div><strong>Channel:</strong> {scanProgress.channel || '—'}</div>
-                <div><strong>Program:</strong> {scanProgress.program || '—'}</div>
-              </div>
-
-              {scanError && (
-                <div className="oscar-list-empty">Error: {scanError}</div>
+              {isScanning && (
+                <div className="oscar-scanner-progress">
+                  <div className="oscar-scanner-progress-bar">
+                    <div
+                      className="oscar-scanner-progress-fill"
+                      style={{
+                        width: scanProgress.total > 0
+                          ? `${Math.round((scanProgress.processed / scanProgress.total) * 100)}%`
+                          : '0%',
+                      }}
+                    />
+                  </div>
+                  <div className="oscar-scanner-progress-details">
+                    <span>📺 {scanProgress.channel || '—'}</span>
+                    <span className="oscar-scanner-progress-program">{scanProgress.program || '—'}</span>
+                  </div>
+                </div>
               )}
 
-              <div className="oscar-list-table-wrapper">
-                <table className="oscar-list-table oscar-scanner-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Channel</th>
-                      <th>TV Program</th>
-                      <th>Matched (EN / BG)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {scanMatches.map((item, index) => (
-                      <tr key={`${item.date}-${item.time}-${item.channel_name}-${index}`}>
-                        <td>{item.date}</td>
-                        <td>{item.time || '-'}</td>
-                        <td>{item.channel_name}</td>
-                        <td className="oscar-title-cell" title={item.program_title}>{item.program_title}</td>
-                        <td className="oscar-title-cell" title={`${item.matched_title_en} / ${item.matched_title_bg}`}>
-                          {item.matched_title_en} / {item.matched_title_bg} ({item.year})
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {scanError && (
+                <div className="oscar-list-empty oscar-list-empty-error">
+                  <span className="oscar-list-empty-icon">⚠️</span>
+                  {scanError}
+                </div>
+              )}
 
-              {!isScanning && scanMatches.length === 0 && !scanError && (
-                <div className="oscar-list-empty">Press Scan to start.</div>
+              {scanMatches.length > 0 ? (
+                <div className="oscar-list-table-wrapper">
+                  <table className="oscar-list-table oscar-scanner-table">
+                    <colgroup>
+                      <col style={{ width: '90px' }} />
+                      <col style={{ width: '54px' }} />
+                      <col style={{ width: '110px' }} />
+                      <col />
+                      <col />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Channel</th>
+                        <th>TV Program</th>
+                        <th>Matched (EN / BG)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scanMatches.map((item, index) => {
+                        const rowId = `${item.date}-${item.time}-${item.channel_name}-${item.program_title}`;
+                        return (
+                        <tr
+                          key={`${item.date}-${item.time}-${item.channel_name}-${index}`}
+                          className={rowId === latestScanMatchId ? 'oscar-scanner-match-row' : ''}
+                        >
+                          <td>{item.date}</td>
+                          <td>{item.time || '-'}</td>
+                          <td>{item.channel_name}</td>
+                          <td className="oscar-title-cell" title={item.program_title}>{item.program_title}</td>
+                          <td className="oscar-title-cell" title={`${item.matched_title_en} / ${item.matched_title_bg}`}>
+                            {item.matched_title_en} / {item.matched_title_bg} ({item.year})
+                          </td>
+                        </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                !isScanning && !scanError && (
+                  <div className="oscar-scanner-idle">
+                    <div className="oscar-scanner-idle-icon">📡</div>
+                    <div className="oscar-scanner-idle-text">Press <strong>Scan</strong> to search for Oscar movies in the TV schedule</div>
+                  </div>
+                )
               )}
             </div>
           </div>
