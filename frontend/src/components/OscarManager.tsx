@@ -43,6 +43,41 @@ interface OscarListRow {
   year: number;
 }
 
+interface ScannerMatch {
+  date: string;
+  time: string;
+  channel_name: string;
+  program_title: string;
+  matched_title_en: string;
+  matched_title_bg: string;
+  year: number;
+}
+
+interface ScannerProgress {
+  processed: number;
+  total: number;
+  channel: string;
+  program: string;
+}
+
+interface RawProgram {
+  title?: string;
+  time?: string;
+}
+
+interface RawChannelData {
+  channel?: {
+    name?: string;
+  };
+  programs?: RawProgram[];
+}
+
+interface RawDateData {
+  programs?: Record<string, RawChannelData>;
+}
+
+type RawPrograms7Days = Record<string, RawDateData>;
+
 interface BlacklistEntry {
   title: string;
   scope: 'broadcast' | 'channel' | 'all';
@@ -67,6 +102,16 @@ const OscarManager: React.FC = () => {
   const [allTitles, setAllTitles] = useState<OscarListRow[]>([]);
   const [loadingAllTitles, setLoadingAllTitles] = useState<boolean>(false);
   const [allTitlesError, setAllTitlesError] = useState<string | null>(null);
+  const [isScannerDialogOpen, setIsScannerDialogOpen] = useState<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanMatches, setScanMatches] = useState<ScannerMatch[]>([]);
+  const [scanProgress, setScanProgress] = useState<ScannerProgress>({
+    processed: 0,
+    total: 0,
+    channel: '',
+    program: '',
+  });
   const [listSort, setListSort] = useState<{
     key: 'year' | 'title_en' | 'title';
     direction: 'asc' | 'desc';
@@ -198,25 +243,28 @@ const OscarManager: React.FC = () => {
   const TMDB_POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w342';
   const TMDB_LOGO_BASE_URL = 'https://image.tmdb.org/t/p/w45';
 
+  const fetchAllTitlesCatalog = async (): Promise<OscarListRow[]> => {
+    try {
+      setLoadingAllTitles(true);
+      setAllTitlesError(null);
+      const response = await fetch('/api/oscars/catalog');
+      if (!response.ok) throw new Error('Failed to fetch full Oscar list');
+      const data = await response.json();
+      const titles = data.programs || [];
+      setAllTitles(titles);
+      return titles;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setAllTitlesError(message);
+      return [];
+    } finally {
+      setLoadingAllTitles(false);
+    }
+  };
+
   useEffect(() => {
     if (!showAllTitles || allTitles.length > 0 || loadingAllTitles) return;
-
-    const fetchAllTitles = async () => {
-      try {
-        setLoadingAllTitles(true);
-        setAllTitlesError(null);
-        const response = await fetch('/api/oscars/catalog');
-        if (!response.ok) throw new Error('Failed to fetch full Oscar list');
-        const data = await response.json();
-        setAllTitles(data.programs || []);
-      } catch (err) {
-        setAllTitlesError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setLoadingAllTitles(false);
-      }
-    };
-
-    fetchAllTitles();
+    fetchAllTitlesCatalog();
   }, [showAllTitles, allTitles.length, loadingAllTitles]);
 
   const listSourcePrograms = useMemo<OscarListRow[]>(() => {
@@ -279,15 +327,116 @@ const OscarManager: React.FC = () => {
   }, [modalProgram]);
 
   useEffect(() => {
-    if (!isListDialogOpen) return;
+    if (!isListDialogOpen && !isScannerDialogOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsListDialogOpen(false);
+        setIsScannerDialogOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isListDialogOpen]);
+  }, [isListDialogOpen, isScannerDialogOpen]);
+
+  const normalizeTitle = (text: string): string => {
+    const cleaned = Array.from(text)
+      .map((ch) => (/\p{L}|\p{N}/u.test(ch) ? ch.toLowerCase() : ' '))
+      .join('');
+    return cleaned.replace(/\s+/g, ' ').trim();
+  };
+
+  const stripEpisodeSuffix = (title: string): string => {
+    return title.replace(/[, ]*(сез\.|сезон|сез|еп\.|епизод|еп)\s*\d+.*$/i, '').trim();
+  };
+
+  const runScanner = async () => {
+    setIsScanning(true);
+    setScanError(null);
+    setScanMatches([]);
+    setScanProgress({ processed: 0, total: 0, channel: '', program: '' });
+
+    try {
+      const catalog = allTitles.length > 0 ? allTitles : await fetchAllTitlesCatalog();
+      if (!catalog.length) {
+        throw new Error('Oscar catalog is empty');
+      }
+
+      const titleIndex = new Map<string, OscarListRow[]>();
+      for (const movie of catalog) {
+        for (const candidate of [movie.title, movie.title_en]) {
+          const key = normalizeTitle(candidate || '');
+          if (!key) continue;
+          const existing = titleIndex.get(key) || [];
+          existing.push(movie);
+          titleIndex.set(key, existing);
+        }
+      }
+
+      const response = await fetch('/api/programs/7days');
+      if (!response.ok) throw new Error('Failed to fetch 7-day programs');
+      const payload = (await response.json()) as RawPrograms7Days;
+
+      const dates = Object.keys(payload).sort();
+      let totalPrograms = 0;
+      for (const date of dates) {
+        const channels = payload[date]?.programs || {};
+        for (const channelData of Object.values(channels)) {
+          totalPrograms += channelData.programs?.length || 0;
+        }
+      }
+
+      let processed = 0;
+      for (const date of dates) {
+        const channels = payload[date]?.programs || {};
+        for (const [channelId, channelData] of Object.entries(channels)) {
+          const channelName = channelData.channel?.name || channelId;
+          const channelPrograms = channelData.programs || [];
+
+          for (const program of channelPrograms) {
+            const programTitle = program.title || '';
+            const normalized = normalizeTitle(stripEpisodeSuffix(programTitle));
+            const candidates = titleIndex.get(normalized) || [];
+
+            processed += 1;
+            if (processed % 10 === 0 || processed === totalPrograms) {
+              setScanProgress({
+                processed,
+                total: totalPrograms,
+                channel: channelName,
+                program: programTitle,
+              });
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            }
+
+            if (candidates.length !== 1) continue;
+            const matchMovie = candidates[0];
+            setScanMatches((prev) => [
+              ...prev,
+              {
+                date,
+                time: program.time || '',
+                channel_name: channelName,
+                program_title: programTitle,
+                matched_title_en: matchMovie.title_en || '',
+                matched_title_bg: matchMovie.title || '',
+                year: matchMovie.year || 0,
+              },
+            ]);
+          }
+        }
+      }
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'Unknown scan error');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const clearScannerResults = () => {
+    setScanMatches([]);
+    setScanError(null);
+    setScanProgress({ processed: 0, total: 0, channel: '', program: '' });
+  };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -349,7 +498,14 @@ const OscarManager: React.FC = () => {
             className="oscar-list-link"
             onClick={() => setIsListDialogOpen(true)}
           >
-            Open titles list
+            List
+          </button>
+          <button
+            type="button"
+            className="oscar-scanner-link"
+            onClick={() => setIsScannerDialogOpen(true)}
+          >
+            Scanner
           </button>
           {isAdmin && (
             <button
@@ -733,6 +889,102 @@ const OscarManager: React.FC = () => {
 
               {sortedListPrograms.length === 0 && (
                 <div className="oscar-list-empty">No movies match your search.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isScannerDialogOpen && (
+        <div
+          className="oscar-modal-overlay"
+          onClick={() => setIsScannerDialogOpen(false)}
+        >
+          <div
+            className="oscar-scanner-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Oscar title scanner"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="oscar-modal-close"
+              onClick={() => setIsScannerDialogOpen(false)}
+              aria-label="Close scanner"
+            >
+              ×
+            </button>
+
+            <div className="oscar-scanner-content">
+              <h3>Scanner</h3>
+              <p className="oscar-scanner-subtitle">
+                Scan all channels and programs from the last 7 days using title-only matching.
+              </p>
+
+              <div className="oscar-scanner-toolbar">
+                <div className="oscar-scanner-actions">
+                  <button
+                    type="button"
+                    className="oscar-scan-button"
+                    onClick={runScanner}
+                    disabled={isScanning}
+                  >
+                    {isScanning ? 'Scanning...' : 'Scan'}
+                  </button>
+                  <button
+                    type="button"
+                    className="oscar-clear-button"
+                    onClick={clearScannerResults}
+                    disabled={isScanning && scanMatches.length === 0}
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="oscar-scanner-stats">
+                  <span>{scanProgress.processed}/{scanProgress.total} checked</span>
+                  <span>{scanMatches.length} matches</span>
+                </div>
+              </div>
+
+              <div className="oscar-scanner-progress">
+                <div><strong>Channel:</strong> {scanProgress.channel || '—'}</div>
+                <div><strong>Program:</strong> {scanProgress.program || '—'}</div>
+              </div>
+
+              {scanError && (
+                <div className="oscar-list-empty">Error: {scanError}</div>
+              )}
+
+              <div className="oscar-list-table-wrapper">
+                <table className="oscar-list-table oscar-scanner-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Channel</th>
+                      <th>TV Program</th>
+                      <th>Matched (EN / BG)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scanMatches.map((item, index) => (
+                      <tr key={`${item.date}-${item.time}-${item.channel_name}-${index}`}>
+                        <td>{item.date}</td>
+                        <td>{item.time || '-'}</td>
+                        <td>{item.channel_name}</td>
+                        <td className="oscar-title-cell" title={item.program_title}>{item.program_title}</td>
+                        <td className="oscar-title-cell" title={`${item.matched_title_en} / ${item.matched_title_bg}`}>
+                          {item.matched_title_en} / {item.matched_title_bg} ({item.year})
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {!isScanning && scanMatches.length === 0 && !scanError && (
+                <div className="oscar-list-empty">Press Scan to start.</div>
               )}
             </div>
           </div>
