@@ -210,7 +210,7 @@ async def fetch_programs(request: FetchRequest = FetchRequest()):
         else:
             target_date = today
 
-        fetcher = ActiveChannelFetcher(CHANNELS_FILE)
+        fetcher = ActiveChannelFetcher(CHANNELS_FILE, storage_provider=storage)
         data = fetcher.fetch_all_programs(date_path=request.date_path, target_date=target_date.isoformat())
 
         # Save to daily file

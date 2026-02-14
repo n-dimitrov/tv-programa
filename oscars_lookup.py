@@ -7,7 +7,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, Optional, Set, Tuple
 
 import requests
 
@@ -43,10 +43,12 @@ class OscarLookup:
         movies_path: str = "data/movies-min.json",
         oscars_path: str = "data/oscars-min.json",
         blacklist_path: str = "data/oscar_blacklist.json",
+        storage_provider: Optional[Any] = None,
     ) -> None:
         self.movies_path = Path(movies_path)
         self.oscars_path = Path(oscars_path)
         self.blacklist_path = Path(blacklist_path)
+        self._storage = storage_provider
         self.enabled = self.movies_path.exists() and self.oscars_path.exists()
         self._tmdb_api_key = os.getenv("TMDB_API_KEY")
         self._watch_region = os.getenv("TMDB_WATCH_REGION", "BG")
@@ -96,10 +98,14 @@ class OscarLookup:
 
     def _load_blacklist(self) -> None:
         """Load blacklist of excluded programs"""
-        if not self.blacklist_path.exists():
-            return
         try:
-            data = self._read_json(self.blacklist_path)
+            if self._storage:
+                data = self._storage.read_json(str(self.blacklist_path)) or {}
+            elif self.blacklist_path.exists():
+                data = self._read_json(self.blacklist_path)
+            else:
+                data = {}
+
             # Store as list of dicts instead of set
             self._blacklist = data.get("excluded", [])
         except Exception:

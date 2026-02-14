@@ -7,35 +7,33 @@ Fetches yesterday's programs and generates a consolidated JSON file
 import json
 import sys
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import Any, List, Dict
 from fetch_tv_program import TVProgramFetcher
 from oscars_lookup import OscarLookup
+from storage import get_storage_provider
 
 
 class ActiveChannelFetcher:
     """Fetches TV programs for all active channels"""
 
-    def __init__(self, channels_file: str = 'data/tv_channels.json'):
+    def __init__(self, channels_file: str = 'data/tv_channels.json', storage_provider: Any = None):
         self.channels_file = channels_file
+        self.storage = storage_provider or get_storage_provider()
         self.fetcher = TVProgramFetcher()
-        self.oscar_lookup = OscarLookup()
+        self.oscar_lookup = OscarLookup(storage_provider=self.storage)
         self.channels = self._load_channels()
 
     def _load_channels(self) -> List[Dict]:
         """Load channels from tv_channels.json and filter active ones"""
-        try:
-            with open(self.channels_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                channels = data.get('channels', [])
-                # Return only active channels
-                active_channels = [ch for ch in channels if ch.get('active', False)]
-                return active_channels
-        except FileNotFoundError:
-            print(f"Error: {self.channels_file} not found")
+        data = self.storage.read_json(self.channels_file)
+        if not data:
+            print(f"Error: {self.channels_file} not found or invalid")
             return []
-        except json.JSONDecodeError:
-            print(f"Error: Invalid JSON in {self.channels_file}")
-            return []
+
+        channels = data.get('channels', [])
+        # Return only active channels
+        active_channels = [ch for ch in channels if ch.get('active', False)]
+        return active_channels
 
     def fetch_all_programs(self, date_path: str = "Вчера", target_date: str = "") -> Dict:
         """
