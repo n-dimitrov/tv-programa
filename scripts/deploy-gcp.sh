@@ -60,7 +60,7 @@ gcloud run deploy "${SERVICE_NAME}" \
     --platform managed \
     --allow-unauthenticated \
     --port 8080 \
-    --set-env-vars "ENVIRONMENT=cloud,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GCS_BUCKET_NAME=${BUCKET_NAME},TMDB_API_KEY=${TMDB_API_KEY},TMDB_WATCH_REGION=${TMDB_WATCH_REGION}" \
+    --set-env-vars "ENVIRONMENT=cloud,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GCS_BUCKET_NAME=${BUCKET_NAME},TMDB_API_KEY=${TMDB_API_KEY},TMDB_WATCH_REGION=${TMDB_WATCH_REGION},AI_API_URL=${AI_API_URL},AI_MODEL=${AI_MODEL}" \
     --memory 512Mi \
     --cpu 1 \
     --timeout 300 \

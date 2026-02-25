@@ -708,6 +708,66 @@
   border: 1px dashed #e2e8f0;
 }
 
+/* Category toggle button */
+.oscar-category-toggle {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.oscar-category-toggle:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.oscar-category-toggle span:first-child {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* Additional categories section */
+.oscar-category-additional {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.oscar-category-additional h5 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 700;
+}
+
+/* Compact 3-column grid for additional categories */
+.oscar-category-grid-compact {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+/* Adjust category font size in compact grid */
+.oscar-category-grid-compact .oscar-category {
+  font-size: 11px;
+  padding: 6px 8px;
+}
+
 .oscar-list-dialog {
   background: #ffffff;
   border-radius: 16px;
@@ -1259,6 +1319,11 @@
 
   .oscar-overview {
     font-size: 13px;
+  }
+
+  /* Make compact grid 2 columns on mobile */
+  .oscar-category-grid-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .oscar-list-dialog-content {

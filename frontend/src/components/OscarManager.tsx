@@ -98,6 +98,7 @@ const OscarManager: React.FC = () => {
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
   const [modalProgram, setModalProgram] = useState<OscarProgram | null>(null);
   const [isWatchExpanded, setIsWatchExpanded] = useState<boolean>(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const [isListDialogOpen, setIsListDialogOpen] = useState<boolean>(false);
   const [listSearchTerm, setListSearchTerm] = useState<string>('');
   const [showAllTitles, setShowAllTitles] = useState<boolean>(false);
@@ -810,30 +811,88 @@ const OscarManager: React.FC = () => {
                 )}
                 <div className="oscar-category-group">
                   <h4>Oscar Categories</h4>
-                  <div className="oscar-category-grid">
-                    {[
-                      'Best Picture',
-                      'Best Director',
-                      'Best Actor',
-                      'Best Actress',
-                      'Best Supporting Actor',
-                      'Best Supporting Actress',
-                      'Best Original Screenplay',
-                      'Best Adapted Screenplay'
-                    ].map((category) => {
-                      const isWinner = modalProgram.winner_categories.includes(category);
-                      const isNominee = modalProgram.nominee_categories.includes(category);
-                      const statusClass = isWinner
-                        ? 'oscar-winner'
-                        : isNominee
-                          ? 'oscar-nominee'
-                          : 'oscar-disabled';
-                      return (
-                        <span key={category} className={`oscar-category ${statusClass}`}>
-                          {category}
-                        </span>
+                  <div className="oscar-category-section">
+                    {(() => {
+                      const MAJOR_CATEGORIES = [
+                        'Best Picture',
+                        'Best Director',
+                        'Best Actor',
+                        'Best Actress',
+                        'Best Supporting Actor',
+                        'Best Supporting Actress',
+                        'Best Original Screenplay',
+                        'Best Adapted Screenplay'
+                      ];
+
+                      // Get all categories from the data
+                      const allCategories = Array.from(new Set([
+                        ...modalProgram.winner_categories,
+                        ...modalProgram.nominee_categories
+                      ]));
+
+                      // Filter out the major categories to get additional ones
+                      const additionalCategories = allCategories.filter(
+                        cat => !MAJOR_CATEGORIES.includes(cat)
                       );
-                    })}
+
+                      const renderCategoryBadge = (category: string) => {
+                        const isWinner = modalProgram.winner_categories.includes(category);
+                        const isNominee = modalProgram.nominee_categories.includes(category);
+                        const statusClass = isWinner
+                          ? 'oscar-winner'
+                          : isNominee
+                            ? 'oscar-nominee'
+                            : 'oscar-disabled';
+                        return (
+                          <span key={category} className={`oscar-category ${statusClass}`}>
+                            {category}
+                          </span>
+                        );
+                      };
+
+                      return (
+                        <>
+                          {/* Major Categories - Always Visible */}
+                          <div className="oscar-category-grid">
+                            {MAJOR_CATEGORIES.map(renderCategoryBadge)}
+                          </div>
+
+                          {/* Toggle Button - Only show if there are additional categories */}
+                          {additionalCategories.length > 0 && (
+                            <>
+                              <button
+                                type="button"
+                                className="oscar-category-toggle"
+                                onClick={() => setShowAllCategories(!showAllCategories)}
+                                aria-expanded={showAllCategories}
+                                aria-controls="additional-categories"
+                              >
+                                <span>{showAllCategories ? '−' : '+'}</span>
+                                <span>
+                                  {showAllCategories
+                                    ? 'Show Fewer Categories'
+                                    : `Show ${additionalCategories.length} More Categories`}
+                                </span>
+                              </button>
+
+                              {/* Additional Categories - Collapsible */}
+                              {showAllCategories && (
+                                <div
+                                  id="additional-categories"
+                                  className="oscar-category-additional"
+                                  role="region"
+                                  aria-label="Technical and Specialty Oscar Categories"
+                                >
+                                  <div className="oscar-category-grid-compact">
+                                    {additionalCategories.map(renderCategoryBadge)}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

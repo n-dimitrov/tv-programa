@@ -38,6 +38,16 @@ class StorageProvider(ABC):
         """List files in directory"""
         pass
 
+    @abstractmethod
+    def read_text(self, file_path: str) -> Optional[str]:
+        """Read text file and return content"""
+        pass
+
+    @abstractmethod
+    def write_text(self, file_path: str, content: str) -> bool:
+        """Write text content to file"""
+        pass
+
 
 class LocalStorageProvider(StorageProvider):
     """Local filesystem storage provider"""
@@ -86,6 +96,26 @@ class LocalStorageProvider(StorageProvider):
         except Exception as e:
             print(f"Error listing {directory}: {e}")
             return []
+
+    def read_text(self, file_path: str) -> Optional[str]:
+        """Read text file from local filesystem"""
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception as e:
+            print(f"Error reading text {file_path}: {e}")
+            return None
+
+    def write_text(self, file_path: str, content: str) -> bool:
+        """Write text file to local filesystem"""
+        try:
+            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return True
+        except Exception as e:
+            print(f"Error writing text {file_path}: {e}")
+            return False
 
 
 class CloudStorageProvider(StorageProvider):
@@ -159,6 +189,27 @@ class CloudStorageProvider(StorageProvider):
         except Exception as e:
             print(f"Error listing {directory} in GCS: {e}")
             return []
+
+    def read_text(self, file_path: str) -> Optional[str]:
+        """Read text file from Cloud Storage"""
+        try:
+            blob = self.bucket.blob(file_path)
+            if not blob.exists():
+                return None
+            return blob.download_as_string().decode('utf-8')
+        except Exception as e:
+            print(f"Error reading text {file_path} from GCS: {e}")
+            return None
+
+    def write_text(self, file_path: str, content: str) -> bool:
+        """Write text file to Cloud Storage"""
+        try:
+            blob = self.bucket.blob(file_path)
+            blob.upload_from_string(content, content_type="text/plain")
+            return True
+        except Exception as e:
+            print(f"Error writing text {file_path} to GCS: {e}")
+            return False
 
 
 def get_storage_provider() -> StorageProvider:

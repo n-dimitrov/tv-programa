@@ -7,7 +7,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import requests
 
@@ -169,31 +169,26 @@ class OscarLookup:
         return watch_info
 
     def _find_movie_id(self, title: str, description: Optional[str]) -> Optional[str]:
-        year = _extract_year(description)
         base_title = _strip_episode_suffix(title)
         key = _normalize_title(base_title)
         if not key:
             return None
 
-        # If year is available, only match with year (strict matching)
-        if year:
-            ids = self._title_year_index.get((year, key))
-            if ids and len(ids) == 1:
-                return next(iter(ids))
-            # If year is present but doesn't match, don't fallback
-            return None
-
-        # Fallback: match by title only if NO year found and title is unique
+        # Match by title only if title is unique
         ids = self._title_index.get(key)
         if ids and len(ids) == 1:
             return next(iter(ids))
 
         return None
 
-    def annotate_program(self, program: Dict, channel_id: str = "", date: str = "", time: str = "") -> None:
-        """Add Oscar winner/nominee info to a program dict if matched."""
+    def annotate_program(self, program: Dict, channel_id: str = "", date: str = "", time: str = "") -> Optional[Dict]:
+        """Add Oscar winner/nominee info to a program dict if matched.
+
+        Returns:
+            Dict with match info if successful, None otherwise
+        """
         if not self.enabled:
-            return
+            return None
 
         title = program.get("title") or ""
         description = program.get("description") or program.get("full") or ""
@@ -204,15 +199,15 @@ class OscarLookup:
 
         # Check if this program is blacklisted
         if self._is_blacklisted(title, channel_id, date, time):
-            return
+            return None
 
         movie_id = self._find_movie_id(title, description)
         if not movie_id:
-            return
+            return None
 
         info = self._oscar_info.get(movie_id)
         if not info:
-            return
+            return None
 
         movie = self._movies.get(movie_id, {})
         tmdb_id = movie.get("tmdb_id")
@@ -233,3 +228,15 @@ class OscarLookup:
         if watch_info:
             oscar_payload["watch"] = watch_info
         program["oscar"] = oscar_payload
+
+        # Return match info for logging
+        return {
+            "program_title": title,
+            "matched_title_bg": movie.get("title_bg"),
+            "matched_title_en": movie.get("title"),
+            "year": movie.get("year"),
+            "winner": len(info["winner"]),
+            "nominee": len(info["nominee"]),
+            "program_description": description,
+            "movie_overview": movie.get("overview"),
+        }

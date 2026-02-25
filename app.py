@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from threading import Lock
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -18,6 +19,11 @@ from pydantic import BaseModel
 from fetch_active_programs import ActiveChannelFetcher
 from fetch_tv_program import TVProgramFetcher
 from storage import get_storage_provider
+
+# Load environment variables from .env files (only for local development)
+# In production (Cloud Run), environment variables are set via deployment script
+# override=False means existing env vars (from Cloud Run) take precedence
+load_dotenv(".env.local", override=False)
 
 # Configuration
 DATA_DIR = Path("data/programs")
@@ -44,6 +50,7 @@ class ChannelsUpdate(BaseModel):
 
 class FetchRequest(BaseModel):
     date_path: str = "Днес"
+    ai_validate: bool = True
 
 class Program(BaseModel):
     time: str
@@ -210,10 +217,10 @@ async def fetch_programs(request: FetchRequest = FetchRequest()):
         else:
             target_date = today
 
-        fetcher = ActiveChannelFetcher(CHANNELS_FILE, storage_provider=storage)
+        fetcher = ActiveChannelFetcher(CHANNELS_FILE, storage_provider=storage, ai_validate=request.ai_validate)
         data = fetcher.fetch_all_programs(date_path=request.date_path, target_date=target_date.isoformat())
 
-        # Save to daily file
+        # Save to daily file (data is already cleaned by AI validation if enabled)
         save_programs_for_date(data, target_date.isoformat())
 
         oscar_titles = []
