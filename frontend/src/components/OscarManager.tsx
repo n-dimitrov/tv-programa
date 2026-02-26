@@ -98,7 +98,6 @@ const OscarManager: React.FC = () => {
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
   const [modalProgram, setModalProgram] = useState<OscarProgram | null>(null);
   const [isWatchExpanded, setIsWatchExpanded] = useState<boolean>(false);
-  const [showAllCategories, setShowAllCategories] = useState(false);
   const [isListDialogOpen, setIsListDialogOpen] = useState<boolean>(false);
   const [listSearchTerm, setListSearchTerm] = useState<string>('');
   const [showAllTitles, setShowAllTitles] = useState<boolean>(false);
@@ -857,38 +856,18 @@ const OscarManager: React.FC = () => {
                             {MAJOR_CATEGORIES.map(renderCategoryBadge)}
                           </div>
 
-                          {/* Toggle Button - Only show if there are additional categories */}
+                          {/* Additional Categories - Always Visible */}
                           {additionalCategories.length > 0 && (
-                            <>
-                              <button
-                                type="button"
-                                className="oscar-category-toggle"
-                                onClick={() => setShowAllCategories(!showAllCategories)}
-                                aria-expanded={showAllCategories}
-                                aria-controls="additional-categories"
-                              >
-                                <span>{showAllCategories ? '−' : '+'}</span>
-                                <span>
-                                  {showAllCategories
-                                    ? 'Show Fewer Categories'
-                                    : `Show ${additionalCategories.length} More Categories`}
-                                </span>
-                              </button>
-
-                              {/* Additional Categories - Collapsible */}
-                              {showAllCategories && (
-                                <div
-                                  id="additional-categories"
-                                  className="oscar-category-additional"
-                                  role="region"
-                                  aria-label="Technical and Specialty Oscar Categories"
-                                >
-                                  <div className="oscar-category-grid-compact">
-                                    {additionalCategories.map(renderCategoryBadge)}
-                                  </div>
-                                </div>
-                              )}
-                            </>
+                            <div
+                              id="additional-categories"
+                              className="oscar-category-additional"
+                              role="region"
+                              aria-label="Technical and Specialty Oscar Categories"
+                            >
+                              <div className="oscar-category-grid-compact">
+                                {additionalCategories.map(renderCategoryBadge)}
+                              </div>
+                            </div>
                           )}
                         </>
                       );
