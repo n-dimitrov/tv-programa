@@ -675,6 +675,142 @@ async def unexclude_oscar_program(request: ExcludeRequest):
 
     return {"success": True, "removed": removed}
 
+@app.get("/api/oscars/monthly")
+async def get_oscar_monthly_summary(year: int = None, month: int = None):
+    """
+    Get Oscar movie statistics for a given month.
+
+    Query params:
+      year  - 4-digit year (default: current year)
+      month - month number 1-12 (default: current month)
+
+    Always recomputes and saves to data/summaries/YYYY-MM_oscar_monthly.json
+    """
+    today = datetime.now().date()
+    if year is None:
+        year = today.year
+    if month is None:
+        month = today.month
+
+    if not (1 <= month <= 12):
+        raise HTTPException(status_code=400, detail="month must be between 1 and 12")
+
+    month_prefix = f"{year:04d}-{month:02d}-"
+
+    # Find all daily files for this month
+    all_files = storage.list_files("data/programs")
+    month_files = sorted([f for f in all_files if f.startswith(month_prefix) and f.endswith(".json")])
+
+    # Collect Oscar data across all days
+    movies_map = {}       # movie_key -> movie dict
+    channel_stats = {}    # channel_name -> {winners: {key: title_str}, nominees: {key: title_str}}
+    total_broadcasts = 0
+
+    def format_title(title: str, title_en: str, year_val) -> str:
+        parts = []
+        if title and title_en:
+            parts.append(f"{title} / {title_en}")
+        elif title:
+            parts.append(title)
+        elif title_en:
+            parts.append(title_en)
+        else:
+            parts.append("Unknown")
+        if year_val:
+            parts.append(f"({year_val})")
+        return " ".join(parts)
+
+    for filename in month_files:
+        date_str = filename.replace(".json", "")
+        day_data = storage.read_json(f"data/programs/{filename}")
+        if not day_data:
+            continue
+
+        for channel_id, channel_data in day_data.get("programs", {}).items():
+            channel_info = channel_data.get("channel", {})
+            channel_name = channel_info.get("name", channel_id)
+            channel_icon = build_logo_url(channel_info.get("icon", ""))
+
+            for program in channel_data.get("programs", []):
+                oscar = program.get("oscar")
+                if not oscar:
+                    continue
+
+                title = program.get("title", "")
+                title_en = oscar.get("title_en", "")
+                year_val = oscar.get("year")
+                movie_key = (title.strip().lower(), (title_en or "").strip().lower())
+                is_winner = oscar.get("winner", 0) > 0
+                title_str = format_title(title, title_en, year_val)
+
+                if movie_key not in movies_map:
+                    movies_map[movie_key] = {
+                        "title": title_str,
+                        "year": year_val,
+                        "poster_path": oscar.get("poster_path"),
+                        "tmdb_id": oscar.get("tmdb_id"),
+                        "is_winner": is_winner,
+                    }
+
+                total_broadcasts += 1
+
+                if channel_name not in channel_stats:
+                    channel_stats[channel_name] = {
+                        "channel_name": channel_name,
+                        "channel_icon": channel_icon,
+                        "winners": {},
+                        "nominees": {},
+                    }
+                if is_winner:
+                    channel_stats[channel_name]["winners"][movie_key] = (year_val or 0, title_str)
+                else:
+                    channel_stats[channel_name]["nominees"][movie_key] = (year_val or 0, title_str)
+
+    def sort_key(m):
+        return (m.get("year") or 0, m["title"])
+
+    winners = sorted([m for m in movies_map.values() if m["is_winner"]], key=sort_key)
+    nominees = sorted([m for m in movies_map.values() if not m["is_winner"]], key=sort_key)
+
+    # Strip internal fields before returning
+    for m in winners + nominees:
+        m.pop("is_winner", None)
+        m.pop("year", None)
+
+    channels = []
+    for ch in channel_stats.values():
+        w = ch["winners"]
+        n = ch["nominees"]
+        channels.append({
+            "channel_name": ch["channel_name"],
+            "channel_icon": ch["channel_icon"],
+            "total_movies": len(w) + len(n),
+            "winners_count": len(w),
+            "winners": [t for _, t in sorted(w.values())],
+            "nominees_count": len(n),
+            "nominees": [t for _, t in sorted(n.values())],
+        })
+    channels.sort(key=lambda x: x["total_movies"], reverse=True)
+
+    result = {
+        "month": f"{year:04d}-{month:02d}",
+        "days_with_data": len(month_files),
+        "total_broadcasts": total_broadcasts,
+        "unique_movies": len(movies_map),
+        "unique_winners": len(winners),
+        "unique_nominees_only": len(nominees),
+        "winners": winners,
+        "nominees": nominees,
+        "channels": channels,
+    }
+
+    # Always save/overwrite summary
+    summary_file = f"data/summaries/{year:04d}-{month:02d}_oscar_monthly.json"
+    storage.write_json(summary_file, result)
+
+    return result
+
+
 @app.get("/api/oscars/blacklist")
 async def get_oscar_blacklist():
     """Get all blacklisted programs"""
