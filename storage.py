@@ -154,7 +154,7 @@ class CloudStorageProvider(StorageProvider):
         try:
             blob = self.bucket.blob(file_path)
             content = json.dumps(data, ensure_ascii=False, indent=2)
-            blob.upload_from_string(content, content_type="application/json")
+            blob.upload_from_string(content.encode("utf-8"), content_type="application/json; charset=utf-8")
             return True
         except Exception as e:
             print(f"Error writing {file_path} to GCS: {e}")
@@ -205,7 +205,7 @@ class CloudStorageProvider(StorageProvider):
         """Write text file to Cloud Storage"""
         try:
             blob = self.bucket.blob(file_path)
-            blob.upload_from_string(content, content_type="text/plain")
+            blob.upload_from_string(content.encode("utf-8"), content_type="text/plain; charset=utf-8")
             return True
         except Exception as e:
             print(f"Error writing text {file_path} to GCS: {e}")
