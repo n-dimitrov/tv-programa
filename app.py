@@ -767,7 +767,10 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
                     channel_stats[channel_name]["nominees"][movie_key] = (year_val or 0, title_str)
 
     def sort_key(m):
-        return (m.get("year") or 0, m["title"])
+        try:
+            return (int(m.get("year") or 0), m["title"])
+        except (TypeError, ValueError):
+            return (0, m["title"])
 
     winners = sorted([m for m in movies_map.values() if m["is_winner"]], key=sort_key)
     nominees = sorted([m for m in movies_map.values() if not m["is_winner"]], key=sort_key)
