@@ -182,8 +182,9 @@ class CloudStorageProvider(StorageProvider):
     def list_files(self, directory: str) -> list:
         """List files in Cloud Storage directory"""
         try:
+            prefix = directory if directory.endswith("/") else directory + "/"
             blobs = self.client.list_blobs(
-                self.bucket_name, prefix=directory, delimiter="/"
+                self.bucket_name, prefix=prefix, delimiter="/"
             )
             return [blob.name.split("/")[-1] for blob in blobs if blob.name.endswith(".json")]
         except Exception as e:
