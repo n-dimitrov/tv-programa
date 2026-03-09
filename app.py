@@ -762,9 +762,17 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
                         "nominees": {},
                     }
                 if is_winner:
-                    channel_stats[channel_name]["winners"][movie_key] = (year_val or 0, title_str)
+                    try:
+                        y = int(year_val or 0)
+                    except (TypeError, ValueError):
+                        y = 0
+                    channel_stats[channel_name]["winners"][movie_key] = (y, title_str)
                 else:
-                    channel_stats[channel_name]["nominees"][movie_key] = (year_val or 0, title_str)
+                    try:
+                        y = int(year_val or 0)
+                    except (TypeError, ValueError):
+                        y = 0
+                    channel_stats[channel_name]["nominees"][movie_key] = (y, title_str)
 
     def sort_key(m):
         try:
