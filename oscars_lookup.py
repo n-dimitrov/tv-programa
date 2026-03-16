@@ -59,13 +59,19 @@ class OscarLookup:
         self._movies: Dict[str, Dict] = {}
         self._blacklist: List[Dict] = []
 
+        if self._storage:
+            self.enabled = True
         if self.enabled:
             self._load()
             self._load_blacklist()
 
     def _load(self) -> None:
-        movies = self._read_json(self.movies_path)
-        oscars = self._read_json(self.oscars_path)
+        if self._storage:
+            movies = self._storage.read_json(str(self.movies_path)) or {}
+            oscars = self._storage.read_json(str(self.oscars_path)) or {}
+        else:
+            movies = self._read_json(self.movies_path)
+            oscars = self._read_json(self.oscars_path)
         self._movies = movies
 
         for movie_id, movie in movies.items():
