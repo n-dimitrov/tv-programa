@@ -538,14 +538,7 @@ async def get_oscar_programs():
 @app.get("/api/oscars/catalog")
 async def get_oscar_catalog():
     """Get full Oscar movie catalog (year, English title, Bulgarian title)."""
-    movies_path = Path("data/movies-min.json")
-    movies_data: Dict[str, Dict] = {}
-    try:
-        if movies_path.exists():
-            with movies_path.open("r", encoding="utf-8") as f:
-                movies_data = json.load(f) or {}
-    except Exception:
-        movies_data = {}
+    movies_data: Dict[str, Dict] = storage.read_json("data/movies-min.json") or {}
 
     programs = []
     for movie in movies_data.values():

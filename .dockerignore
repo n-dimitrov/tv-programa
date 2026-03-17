@@ -1,3 +1,7 @@
+data/movies-min.json
+data/movies-min-old.json
+data/oscars-min.json
+data/oscars-min-old.json
 venv
 .git
 .gitignore
