@@ -313,6 +313,7 @@ async def fetch_programs(request: FetchRequest = FetchRequest()):
                 else "<p>None</p>"
             )
             oscar_info = (
+                f'<p><a href="https://7daystv.app">7daystv.app</a></p>'
                 f"<p><strong>Oscar winners ({len(winners_lines)})</strong></p>"
                 f"{winners_list}"
                 f"<p><strong>Oscar nominees ({len(nominees_lines)})</strong></p>"
@@ -677,6 +678,7 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
       year  - 4-digit year (default: current year)
       month - month number 1-12 (default: current month)
 
+    Returns movie-centric JSON with oscar metadata and programs array.
     Always recomputes and saves to data/summaries/YYYY-MM_oscar_monthly.json
     """
     today = datetime.now().date()
@@ -695,11 +697,12 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
     month_files = sorted([f for f in all_files if f.startswith(month_prefix) and f.endswith(".json")])
 
     # Collect Oscar data across all days
-    movies_map = {}       # movie_key -> movie dict
+    movies_map = {}       # movie_key -> movie dict with oscar metadata + programs array
     channel_stats = {}    # channel_name -> {winners: {key: title_str}, nominees: {key: title_str}}
     total_broadcasts = 0
 
     def format_title(title: str, title_en: str, year_val) -> str:
+        """Format title for channel stats (backward compatibility)"""
         parts = []
         if title and title_en:
             parts.append(f"{title} / {title_en}")
@@ -736,17 +739,35 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
                 is_winner = oscar.get("winner", 0) > 0
                 title_str = format_title(title, title_en, year_val)
 
+                # Initialize movie entry with full oscar metadata
                 if movie_key not in movies_map:
                     movies_map[movie_key] = {
-                        "title": title_str,
+                        "title": title,
+                        "title_en": title_en,
                         "year": year_val,
                         "poster_path": oscar.get("poster_path"),
                         "tmdb_id": oscar.get("tmdb_id"),
-                        "is_winner": is_winner,
+                        "overview": oscar.get("overview", ""),
+                        "oscar": {
+                            "winner": oscar.get("winner", 0),
+                            "nominee": oscar.get("nominee", 0),
+                            "winner_categories": oscar.get("winner_categories", []),
+                            "nominee_categories": oscar.get("nominee_categories", [])
+                        },
+                        "programs": []
                     }
+
+                # Append broadcast to programs array
+                movies_map[movie_key]["programs"].append({
+                    "date": date_str,
+                    "time": program.get("time", ""),
+                    "channel_name": channel_name,
+                    "channel_icon": channel_icon
+                })
 
                 total_broadcasts += 1
 
+                # Keep channel stats for backward compatibility
                 if channel_name not in channel_stats:
                     channel_stats[channel_name] = {
                         "channel_name": channel_name,
@@ -767,20 +788,26 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
                         y = 0
                     channel_stats[channel_name]["nominees"][movie_key] = (y, title_str)
 
+    # Build movies array with broadcast counts
+    movies = []
+    for movie_data in movies_map.values():
+        # Sort programs by date (chronological)
+        movie_data["programs"].sort(key=lambda p: (p["date"], p["time"]))
+        movie_data["broadcast_count"] = len(movie_data["programs"])
+        movies.append(movie_data)
+
+    # Sort movies by year, then title
     def sort_key(m):
         try:
-            return (int(m.get("year") or 0), m["title"])
+            year_int = int(m.get("year") or 0)
         except (TypeError, ValueError):
-            return (0, m["title"])
+            year_int = 0
+        title = m.get("title") or m.get("title_en") or ""
+        return (year_int, title)
 
-    winners = sorted([m for m in movies_map.values() if m["is_winner"]], key=sort_key)
-    nominees = sorted([m for m in movies_map.values() if not m["is_winner"]], key=sort_key)
+    movies.sort(key=sort_key)
 
-    # Strip internal fields before returning
-    for m in winners + nominees:
-        m.pop("is_winner", None)
-        m.pop("year", None)
-
+    # Build channel stats (backward compatibility)
     channels = []
     for ch in channel_stats.values():
         w = ch["winners"]
@@ -801,10 +828,7 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
         "days_with_data": len(month_files),
         "total_broadcasts": total_broadcasts,
         "unique_movies": len(movies_map),
-        "unique_winners": len(winners),
-        "unique_nominees_only": len(nominees),
-        "winners": winners,
-        "nominees": nominees,
+        "movies": movies,
         "channels": channels,
     }
 
