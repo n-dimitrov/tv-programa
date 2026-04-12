@@ -187,7 +187,27 @@ def get_cached_7days() -> Optional[Dict]:
 
 ## Auth
 
-There is no auth. The API is open. This was a known trade-off documented in `docs/ARCHITECTURE.md`.
+Optional Firebase Authentication via `auth.py`. See ADR-0002.
+
+`get_optional_user` is a FastAPI dependency that returns the decoded Firebase token payload (`{uid, email, name, ...}`) if a valid `Authorization: Bearer <token>` header is present, or `None` for anonymous requests. It never raises — callers that require auth must check for `None` themselves:
+
+```python
+# app.py — user-specific endpoint
+from auth import get_optional_user
+
+@app.get("/api/user/me")
+async def get_me(user=Depends(get_optional_user)):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"uid": user["uid"], "email": user.get("email")}
+```
+
+All existing public endpoints are unaffected — they do not use this dependency.
+
+Firebase Admin SDK is initialized once at module load in `auth.py`. If initialization fails (missing credentials), `get_optional_user` always returns `None` — the app stays functional for anonymous users.
+
+**Local dev**: set `FIREBASE_SERVICE_ACCOUNT_KEY` (JSON string) in `.env.local`.
+**Cloud Run**: uses Application Default Credentials automatically (no key needed if the service account has Firebase Auth permissions).
 
 ---
 

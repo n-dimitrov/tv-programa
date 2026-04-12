@@ -84,8 +84,8 @@ echo ""
 # Optionally regenerate Oscar monthly summary
 read -p "Regenerate Oscar monthly summary before archiving? [Y/n]: " REGEN
 if [[ ! "$REGEN" =~ ^[Nn]$ ]]; then
-    echo "Calling /api/oscars/monthly?year=${YEAR}&month=${MONTH} ..."
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${SERVICE_URL}/api/oscars/monthly?year=${YEAR}&month=${MONTH}")
+    echo "Calling POST /api/oscars/monthly/generate?year=${YEAR}&month=${MONTH} ..."
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${SERVICE_URL}/api/oscars/monthly/generate?year=${YEAR}&month=${MONTH}")
     if [ "$HTTP_STATUS" -eq 200 ]; then
         echo "Oscar summary regenerated."
     else

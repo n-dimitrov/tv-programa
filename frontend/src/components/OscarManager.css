@@ -1407,6 +1407,10 @@
     width: 100%;
     height: 180px;
   }
+
+  .oscar-archive-month-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 /* Archive Dialog */
@@ -1458,7 +1462,7 @@
   color: #111827;
 }
 
-.oscar-archive-month-select {
+.oscar-archive-year-selector {
   height: 38px;
   padding: 0 12px;
   border: 1px solid #d1d5db;
@@ -1470,10 +1474,65 @@
   cursor: pointer;
 }
 
-.oscar-archive-month-select:focus {
+.oscar-archive-year-selector:focus {
   outline: none;
   border-color: #93c5fd;
   box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.3);
+}
+
+.oscar-archive-month-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.oscar-archive-month-btn {
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.oscar-archive-month-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.oscar-archive-month-btn.month-btn-disabled {
+  background: #f9fafb;
+  color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.oscar-archive-month-btn.month-btn-start,
+.oscar-archive-month-btn.month-btn-end,
+.oscar-archive-month-btn.month-btn-active {
+  background: #d4af37;
+  border-color: #b8960c;
+  color: #ffffff;
+}
+
+.oscar-archive-month-btn.month-btn-in-range {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.oscar-archive-range-label {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 8px;
 }
 
 .oscar-archive-stats {

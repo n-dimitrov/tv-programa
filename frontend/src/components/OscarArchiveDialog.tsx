@@ -43,6 +43,11 @@ interface MonthlySummary {
   channels: ArchiveChannel[];
 }
 
+interface MonthRange {
+  start: string;      // "YYYY-MM"
+  end: string | null; // null = single month selection
+}
+
 interface OscarArchiveDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -50,7 +55,8 @@ interface OscarArchiveDialogProps {
 
 const OscarArchiveDialog: React.FC<OscarArchiveDialogProps> = ({ isOpen, onClose }) => {
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedRange, setSelectedRange] = useState<MonthRange>({ start: '', end: null });
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +70,40 @@ const OscarArchiveDialog: React.FC<OscarArchiveDialogProps> = ({ isOpen, onClose
   const cache = useRef<Map<string, MonthlySummary>>(new Map());
   const monthsFetched = useRef(false);
 
+  // Helper functions for range selection
+  const getMonthsInRange = (start: string, end: string | null): string[] => {
+    if (!end || start === end) return [start];
+    const months: string[] = [];
+    const [startYear, startMonth] = start.split('-').map(Number);
+    const [endYear, endMonth] = end.split('-').map(Number);
+
+    for (let y = startYear; y <= endYear; y++) {
+      const monthStart = y === startYear ? startMonth : 1;
+      const monthEnd = y === endYear ? endMonth : 12;
+      for (let m = monthStart; m <= monthEnd; m++) {
+        months.push(`${y}-${m.toString().padStart(2, '0')}`);
+      }
+    }
+    return months;
+  };
+
+  const isMonthInRange = (month: string, range: MonthRange): boolean => {
+    if (!range.start) return false;
+    if (!range.end) return month === range.start;
+    return month >= range.start && month <= range.end;
+  };
+
+  const getAvailableYears = (months: string[]): number[] => {
+    const years = new Set(months.map(m => parseInt(m.split('-')[0], 10)));
+    return Array.from(years).sort((a, b) => b - a);
+  };
+
+  const formatRangeLabel = (range: MonthRange): string => {
+    if (!range.start) return '';
+    if (!range.end) return formatMonthLabel(range.start);
+    return `${formatMonthLabel(range.start)} → ${formatMonthLabel(range.end)}`;
+  };
+
   const fetchAvailableMonths = useCallback(async () => {
     try {
       const response = await fetch('/api/oscars/monthly/available');
@@ -71,37 +111,124 @@ const OscarArchiveDialog: React.FC<OscarArchiveDialogProps> = ({ isOpen, onClose
       const data = await response.json();
       const months: string[] = data.months || [];
       setAvailableMonths(months);
-      if (months.length > 0 && !selectedMonth) {
-        setSelectedMonth(months[0]);
+      if (months.length > 0 && !selectedRange.start) {
+        const firstMonth = months[0];
+        setSelectedRange({ start: firstMonth, end: null });
+        const year = parseInt(firstMonth.split('-')[0], 10);
+        setSelectedYear(year);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load available months');
     }
-  }, [selectedMonth]);
+  }, [selectedRange.start]);
 
-  const fetchMonthlySummary = useCallback(async (month: string) => {
+  const fetchMonthlySummary = useCallback(async (month: string): Promise<MonthlySummary> => {
     const cached = cache.current.get(month);
     if (cached) {
-      setSummary(cached);
-      return;
+      return cached;
     }
 
     const [yearStr, monthStr] = month.split('-');
+    const response = await fetch(`/api/oscars/monthly?year=${yearStr}&month=${parseInt(monthStr, 10)}`);
+    if (!response.ok) throw new Error('Failed to fetch monthly summary');
+    const data: MonthlySummary = await response.json();
+    cache.current.set(month, data);
+    return data;
+  }, []);
+
+  const aggregateSummaries = (summaries: MonthlySummary[], range: MonthRange): MonthlySummary => {
+    const normalizeMovieKeyPart = (value?: string | number | null): string => {
+      if (value === undefined || value === null) return '';
+      return String(value).trim().toLowerCase();
+    };
+
+    const getMovieAggregateKey = (movie: ArchiveMovie): string => {
+      const tmdb = normalizeMovieKeyPart(movie.tmdb_id);
+      const year = normalizeMovieKeyPart(movie.year);
+      const titleEn = normalizeMovieKeyPart(movie.title_en);
+      const titleBg = normalizeMovieKeyPart(movie.title);
+
+      // Prefer stable IDs when present.
+      if (tmdb) return `tmdb:${tmdb}`;
+      if (titleEn && year) return `title-en-year:${titleEn}|${year}`;
+      if (titleBg && year) return `title-bg-year:${titleBg}|${year}`;
+      if (titleEn) return `title-en:${titleEn}`;
+      if (titleBg) return `title-bg:${titleBg}`;
+      return `unknown:${year || 'n/a'}`;
+    };
+
+    // Combine movies (deduplicate with robust key fallback)
+    const moviesMap = new Map<string, ArchiveMovie>();
+    summaries.forEach(s => {
+      s.movies.forEach(m => {
+        const key = getMovieAggregateKey(m);
+        if (moviesMap.has(key)) {
+          const existing = moviesMap.get(key)!;
+          existing.programs.push(...m.programs);
+          existing.broadcast_count += m.broadcast_count;
+          if (!existing.year && m.year) {
+            existing.year = m.year;
+          }
+          if (!existing.tmdb_id && m.tmdb_id) {
+            existing.tmdb_id = m.tmdb_id;
+          }
+        } else {
+          moviesMap.set(key, { ...m, programs: [...m.programs] });
+        }
+      });
+    });
+
+    // Combine channels (merge by channel_name)
+    const channelsMap = new Map<string, ArchiveChannel>();
+    summaries.forEach(s => {
+      s.channels.forEach(ch => {
+        if (channelsMap.has(ch.channel_name)) {
+          const existing = channelsMap.get(ch.channel_name)!;
+          existing.total_movies += ch.total_movies;
+          existing.winners_count += ch.winners_count;
+          existing.nominees_count += ch.nominees_count;
+          existing.winners = Array.from(new Set([...existing.winners, ...ch.winners]));
+          existing.nominees = Array.from(new Set([...existing.nominees, ...ch.nominees]));
+        } else {
+          channelsMap.set(ch.channel_name, { ...ch });
+        }
+      });
+    });
+
+    return {
+      month: formatRangeLabel(range),
+      days_with_data: summaries.reduce((sum, s) => sum + s.days_with_data, 0),
+      total_broadcasts: summaries.reduce((sum, s) => sum + s.total_broadcasts, 0),
+      unique_movies: moviesMap.size,
+      movies: Array.from(moviesMap.values()),
+      channels: Array.from(channelsMap.values())
+    };
+  };
+
+  const fetchRangeData = useCallback(async (range: MonthRange) => {
+    if (!range.start) return;
+
+    const months = getMonthsInRange(range.start, range.end);
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`/api/oscars/monthly?year=${yearStr}&month=${parseInt(monthStr, 10)}`);
-      if (!response.ok) throw new Error('Failed to fetch monthly summary');
-      const data: MonthlySummary = await response.json();
-      cache.current.set(month, data);
-      setSummary(data);
+      const summaries = await Promise.all(months.map(m => fetchMonthlySummary(m)));
+
+      if (summaries.length === 1) {
+        setSummary(summaries[0]);
+      } else {
+        const aggregated = aggregateSummaries(summaries, range);
+        setSummary(aggregated);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load monthly data');
       setSummary(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchMonthlySummary]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -112,9 +239,9 @@ const OscarArchiveDialog: React.FC<OscarArchiveDialogProps> = ({ isOpen, onClose
   }, [isOpen, fetchAvailableMonths]);
 
   useEffect(() => {
-    if (!isOpen || !selectedMonth) return;
-    fetchMonthlySummary(selectedMonth);
-  }, [isOpen, selectedMonth, fetchMonthlySummary]);
+    if (!isOpen || !selectedRange.start) return;
+    fetchRangeData(selectedRange);
+  }, [isOpen, selectedRange, fetchRangeData]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -159,6 +286,17 @@ const OscarArchiveDialog: React.FC<OscarArchiveDialogProps> = ({ isOpen, onClose
       else next.add(channelName);
       return next;
     });
+  };
+
+  const handleMonthClick = (month: string) => {
+    if (!selectedRange.start || selectedRange.end) {
+      // First click or resetting: set start, clear end
+      setSelectedRange({ start: month, end: null });
+    } else {
+      // Second click: set end (auto-sort to ensure start <= end)
+      const [first, second] = [selectedRange.start, month].sort();
+      setSelectedRange({ start: first, end: second === first ? null : second });
+    }
   };
 
   const toggleMovieBroadcasts = (index: number) => {
@@ -227,19 +365,63 @@ const OscarArchiveDialog: React.FC<OscarArchiveDialogProps> = ({ isOpen, onClose
 
         <div className="oscar-archive-content">
           <div className="oscar-archive-header">
-            <h3>Monthly Archive</h3>
+            <h3>📅 Archive</h3>
             {availableMonths.length > 0 && (
               <select
-                className="oscar-archive-month-select"
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(e.target.value)}
+                className="oscar-archive-year-selector"
+                value={selectedYear}
+                onChange={e => setSelectedYear(parseInt(e.target.value, 10))}
               >
-                {availableMonths.map(m => (
-                  <option key={m} value={m}>{formatMonthLabel(m)}</option>
+                {getAvailableYears(availableMonths).map(y => (
+                  <option key={y} value={y}>{y}</option>
                 ))}
               </select>
             )}
           </div>
+
+          {availableMonths.length > 0 && (
+            <>
+              <div className="oscar-archive-month-grid">
+                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((label, idx) => {
+                  const monthNum = idx + 1;
+                  const monthStr = `${selectedYear}-${monthNum.toString().padStart(2, '0')}`;
+                  const isAvailable = availableMonths.includes(monthStr);
+                  const isStart = selectedRange.start === monthStr;
+                  const isEnd = selectedRange.end === monthStr;
+                  const isInRange = isMonthInRange(monthStr, selectedRange);
+                  const isActive = !selectedRange.end && selectedRange.start === monthStr;
+
+                  return (
+                    <button
+                      key={monthStr}
+                      type="button"
+                      className={`oscar-archive-month-btn ${
+                        !isAvailable ? 'month-btn-disabled' :
+                        isStart ? 'month-btn-start' :
+                        isEnd ? 'month-btn-end' :
+                        isInRange ? 'month-btn-in-range' :
+                        isActive ? 'month-btn-active' : ''
+                      }`}
+                      onClick={() => isAvailable && handleMonthClick(monthStr)}
+                      disabled={!isAvailable}
+                      aria-label={`${label} ${selectedYear}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedRange.start && (
+                <div className="oscar-archive-range-label">
+                  {selectedRange.end
+                    ? `${formatMonthLabel(selectedRange.start)} → ${formatMonthLabel(selectedRange.end)}`
+                    : formatMonthLabel(selectedRange.start)
+                  }
+                </div>
+              )}
+            </>
+          )}
 
           {summary && !loading && (
             <div className="oscar-archive-stats">
@@ -300,7 +482,7 @@ const OscarArchiveDialog: React.FC<OscarArchiveDialogProps> = ({ isOpen, onClose
           {loading ? (
             <div className="oscar-list-empty">
               <span className="oscar-list-empty-icon">⏳</span>
-              Loading {selectedMonth ? formatMonthLabel(selectedMonth) : 'data'}...
+              Loading {selectedRange.start ? formatRangeLabel(selectedRange) : 'data'}...
             </div>
           ) : error ? (
             <div className="oscar-list-empty oscar-list-empty-error">

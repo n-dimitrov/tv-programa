@@ -136,3 +136,5 @@ Oscar matches collected during channel scraping
 | AI validation API | Validate Oscar title matches, reduce false positives | `AI_API_URL`, `AI_MODEL` |
 | Google Cloud Storage | File storage in cloud mode | `GCS_BUCKET_NAME` |
 | Google Cloud Run | Container hosting | `ENVIRONMENT=cloud`, `PORT` |
+| Firebase Authentication | Optional Google login for personalization features | Firebase project config, `FIREBASE_SERVICE_ACCOUNT_KEY` |
+| Firestore | Per-user data store (preferences, favorites — shape TBD) | Firebase project (same as auth) |

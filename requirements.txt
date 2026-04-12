@@ -5,3 +5,4 @@ uvicorn[standard]
 python-multipart
 pydantic
 python-dotenv
+firebase-admin

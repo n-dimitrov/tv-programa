@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from fetch_active_programs import ActiveChannelFetcher
 from fetch_tv_program import TVProgramFetcher
+from oscars_lookup import _strip_episode_suffix
 from storage import get_storage_provider
 
 # Load environment variables from .env files (only for local development)
@@ -672,14 +673,16 @@ async def unexclude_oscar_program(request: ExcludeRequest):
 @app.get("/api/oscars/monthly")
 async def get_oscar_monthly_summary(year: int = None, month: int = None):
     """
-    Get Oscar movie statistics for a given month.
+    Get pre-generated Oscar movie statistics for a month.
 
     Query params:
       year  - 4-digit year (default: current year)
       month - month number 1-12 (default: current month)
 
     Returns movie-centric JSON with oscar metadata and programs array.
-    Always recomputes and saves to data/summaries/YYYY-MM_oscar_monthly.json
+    Returns 404 if summary doesn't exist.
+
+    To generate a new summary, use POST /api/oscars/monthly/generate
     """
     today = datetime.now().date()
     if year is None:
@@ -690,7 +693,89 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
     if not (1 <= month <= 12):
         raise HTTPException(status_code=400, detail="month must be between 1 and 12")
 
+    summary_file = f"data/summaries/{year:04d}-{month:02d}_oscar_monthly.json"
+
+    # READ ONLY - no computation
+    existing = storage.read_json(summary_file)
+    if not existing:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Summary for {year:04d}-{month:02d} not found. Generate it first using POST /api/oscars/monthly/generate"
+        )
+
+    return existing
+
+
+@app.post("/api/oscars/monthly/generate")
+async def generate_oscar_monthly_summary(year: int, month: int):
+    """
+    Generate Oscar monthly summary from daily program files.
+    This OVERWRITES any existing summary file.
+
+    Query params:
+      year  - 4-digit year
+      month - month number 1-12
+
+    Admin use only - run once per month after data is complete.
+    Returns movie-centric JSON with oscar metadata and programs array.
+    """
+    if not (1 <= month <= 12):
+        raise HTTPException(status_code=400, detail="month must be between 1 and 12")
+
     month_prefix = f"{year:04d}-{month:02d}-"
+
+    def normalize_title(value: str) -> str:
+        return (value or "").strip().lower()
+
+    def clean_program_title(value: str) -> str:
+        raw = (value or "").strip()
+        if not raw:
+            return ""
+        cleaned = _strip_episode_suffix(raw).strip()
+        return cleaned or raw
+
+    # Build lightweight lookup maps for missing metadata backfill.
+    movies_catalog = storage.read_json("data/movies-min.json") or {}
+    movie_year_by_tmdb = {}
+    movie_year_by_title_en = {}
+    movie_year_by_title_bg = {}
+    ambiguous_title_en = set()
+    ambiguous_title_bg = set()
+
+    if isinstance(movies_catalog, dict):
+        for item in movies_catalog.values():
+            if not isinstance(item, dict):
+                continue
+
+            item_year = item.get("year")
+            tmdb_id = item.get("tmdb_id")
+            title_en_val = normalize_title(item.get("title"))
+            title_bg_val = normalize_title(item.get("title_bg"))
+
+            if tmdb_id is not None and item_year:
+                try:
+                    movie_year_by_tmdb[int(tmdb_id)] = item_year
+                except (TypeError, ValueError):
+                    pass
+
+            if title_en_val and item_year:
+                previous = movie_year_by_title_en.get(title_en_val)
+                if previous and previous != item_year:
+                    ambiguous_title_en.add(title_en_val)
+                else:
+                    movie_year_by_title_en[title_en_val] = item_year
+
+            if title_bg_val and item_year:
+                previous = movie_year_by_title_bg.get(title_bg_val)
+                if previous and previous != item_year:
+                    ambiguous_title_bg.add(title_bg_val)
+                else:
+                    movie_year_by_title_bg[title_bg_val] = item_year
+
+    for t in ambiguous_title_en:
+        movie_year_by_title_en.pop(t, None)
+    for t in ambiguous_title_bg:
+        movie_year_by_title_bg.pop(t, None)
 
     # Find all daily files for this month
     all_files = storage.list_files("data/programs")
@@ -732,9 +817,26 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
                 if not oscar:
                     continue
 
-                title = program.get("title", "")
+                title = clean_program_title(program.get("title", ""))
                 title_en = oscar.get("title_en", "")
                 year_val = oscar.get("year")
+
+                # Some historical entries may miss year in oscar payload.
+                # Backfill from local movie catalog by tmdb_id, then by title.
+                if not year_val:
+                    tmdb_id = oscar.get("tmdb_id")
+                    if tmdb_id is not None:
+                        try:
+                            year_val = movie_year_by_tmdb.get(int(tmdb_id))
+                        except (TypeError, ValueError):
+                            year_val = None
+
+                if not year_val and title_en:
+                    year_val = movie_year_by_title_en.get(normalize_title(title_en))
+
+                if not year_val and title:
+                    year_val = movie_year_by_title_bg.get(normalize_title(title))
+
                 movie_key = (title.strip().lower(), (title_en or "").strip().lower())
                 is_winner = oscar.get("winner", 0) > 0
                 title_str = format_title(title, title_en, year_val)
@@ -756,6 +858,8 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
                         },
                         "programs": []
                     }
+                elif not movies_map[movie_key].get("year") and year_val:
+                    movies_map[movie_key]["year"] = year_val
 
                 # Append broadcast to programs array
                 movies_map[movie_key]["programs"].append({
