@@ -839,6 +839,20 @@ async def get_oscar_monthly_summary(year: int = None, month: int = None):
     return result
 
 
+@app.get("/api/oscars/monthly/available")
+async def get_available_monthly_summaries():
+    """List months that have Oscar summary data."""
+    files = storage.list_files("data/summaries")
+    months = []
+    for f in files:
+        if f.endswith("_oscar_monthly.json"):
+            month_str = f.replace("_oscar_monthly.json", "")
+            if len(month_str) == 7 and month_str[4] == "-":
+                months.append(month_str)
+    months.sort(reverse=True)
+    return {"months": months}
+
+
 @app.get("/api/oscars/blacklist")
 async def get_oscar_blacklist():
     """Get all blacklisted programs"""

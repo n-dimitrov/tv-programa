@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './OscarManager.css';
+import OscarArchiveDialog from './OscarArchiveDialog';
 
 interface Broadcast {
   channel_id: string;
@@ -120,6 +121,7 @@ const OscarManager: React.FC = () => {
     direction: 'asc' | 'desc';
   }>({ key: 'year', direction: 'desc' });
   const [totalCatalogCount, setTotalCatalogCount] = useState<number | null>(null);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState<boolean>(false);
 
   // Check if admin mode is enabled via URL parameter
   const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
@@ -343,16 +345,17 @@ const OscarManager: React.FC = () => {
   }, [modalProgram]);
 
   useEffect(() => {
-    if (!isListDialogOpen && !isScannerDialogOpen) return;
+    if (!isListDialogOpen && !isScannerDialogOpen && !isArchiveDialogOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsListDialogOpen(false);
         setIsScannerDialogOpen(false);
+        setIsArchiveDialogOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isListDialogOpen, isScannerDialogOpen]);
+  }, [isListDialogOpen, isScannerDialogOpen, isArchiveDialogOpen]);
 
   const normalizeTitle = (text: string): string => {
     const cleaned = Array.from(text)
@@ -563,6 +566,13 @@ const OscarManager: React.FC = () => {
             onClick={() => setIsScannerDialogOpen(true)}
           >
             Scanner
+          </button>
+          <button
+            type="button"
+            className="oscar-archive-link"
+            onClick={() => setIsArchiveDialogOpen(true)}
+          >
+            Archive
           </button>
           {isAdmin && (
             <button
@@ -1173,6 +1183,11 @@ const OscarManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      <OscarArchiveDialog
+        isOpen={isArchiveDialogOpen}
+        onClose={() => setIsArchiveDialogOpen(false)}
+      />
     </div>
   );
 };
