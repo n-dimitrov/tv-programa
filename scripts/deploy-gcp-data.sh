@@ -43,6 +43,7 @@ DATA_FILES=(
     "data/movies-min.json"
     "data/oscars-min.json"
     "data/prompts/oscar_validation.txt"
+    "data/prompts/oscar_disambiguation.txt"
 )
 
 for file in "${DATA_FILES[@]}"; do
