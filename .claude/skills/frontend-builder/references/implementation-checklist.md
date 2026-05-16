@@ -6,12 +6,12 @@ Use this when a feature is complex (spans multiple components, introduces new in
 
 ## Before starting
 
-- [ ] Read `CLAUDE.md` and `ai-core/knowledge/patterns/coding-patterns.md` (non-negotiable)
-- [ ] Read `ai-core/memory/anti-patterns.md` — check for known failed approaches before starting
-- [ ] Read the ADR index (`ai-core/knowledge/architecture/adr/README.md`) and any relevant ADRs
-- [ ] Read the component doc (`ai-core/knowledge/components/[name].md`) for any component you'll significantly modify
+- [ ] Read `aisdlc/INDEX.md` and `aisdlc/knowledge/patterns/coding-patterns.md` (non-negotiable)
+- [ ] Read `aisdlc/memory/anti-patterns.md` — check for known failed approaches before starting
+- [ ] Read the ADR index (`aisdlc/knowledge/architecture/adr/README.md`) and any relevant ADRs
+- [ ] Read the component doc (`aisdlc/knowledge/components/[name].md`) for any component you'll significantly modify
 - [ ] If touching a shared module: understand who else depends on it (check the component doc's "Depended on by" section)
-- [ ] If adding a new dependency: verify it's consistent with the project's dependency philosophy (check CLAUDE.md or relevant ADR)
+- [ ] If adding a new dependency: verify it's consistent with the project's dependency philosophy (check aisdlc/INDEX.md or relevant ADR)
 
 ---
 
@@ -62,10 +62,10 @@ Use this when a feature is complex (spans multiple components, introduces new in
 
 ### Documentation updates
 
-- [ ] **`ai-core/knowledge/patterns/coding-patterns.md`**: Updated if a new pattern was introduced — include a real code snippet
-- [ ] **`ai-core/knowledge/components/[name].md`**: Updated if a component's public interface or behavior changed significantly
-- [ ] **`ai-core/knowledge/architecture/overview.md`**: Updated if the topology or data flow changed
-- [ ] **`ai-core/memory/learnings.md`**: One-liner appended if a non-obvious approach worked well (`#candidate-for-promotion`)
+- [ ] **`aisdlc/knowledge/patterns/coding-patterns.md`**: Updated if a new pattern was introduced — include a real code snippet
+- [ ] **`aisdlc/knowledge/components/[name].md`**: Updated if a component's public interface or behavior changed significantly
+- [ ] **`aisdlc/knowledge/architecture/overview.md`**: Updated if the topology or data flow changed
+- [ ] **`aisdlc/memory/learnings.md`**: One-liner appended if a non-obvious approach worked well (`#candidate-for-promotion`)
 - [ ] **ADR**: Written if the implementation introduced a decision with lasting structural implications
 
 ### Code review readiness

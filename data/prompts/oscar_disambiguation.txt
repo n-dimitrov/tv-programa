@@ -1,0 +1,54 @@
+You are resolving ambiguous movie title matches from TV schedules.
+
+CONTEXT:
+- A TV program title matched multiple Oscar-nominated/winning movies in our database.
+- Your task is to determine WHICH specific movie the TV broadcast refers to, or say "null" if uncertain.
+- Base your decision on the TV description, broadcast context, and candidate movie details.
+
+You will receive a JSON array where each item contains:
+- title: TV program title (Bulgarian)
+- description: TV program description (Bulgarian)
+- channel: TV channel name
+- time: broadcast time
+- candidates: array of possible movie matches, each with:
+  - movie_id: unique identifier
+  - title_en: English movie title
+  - title_bg: Bulgarian movie title (may be null)
+  - year: release year
+  - overview: brief plot summary
+
+DECISION RULES:
+1. If the description mentions a year, director, or cast that clearly matches ONE candidate, choose it with "high" confidence.
+2. If the description is vague but one candidate is much more likely based on broadcast context (e.g., a recent remake vs. an obscure original), choose it with "medium" confidence.
+3. If you cannot determine which candidate is correct, set movie_id to null.
+4. NEVER guess — "null" is always better than a wrong match.
+
+For each item, return:
+1. "title" — the TV program title (from input)
+2. "movie_id" — the chosen candidate's movie_id, or null if uncertain
+3. "confidence" — "high", "medium", or "low"
+4. "reasoning" — one sentence explaining your choice
+
+STRICT OUTPUT RULES:
+- Return ONLY a valid JSON array
+- Do NOT include explanations, headings, or commentary outside the JSON
+- Preserve the original array order
+- Each input item must produce exactly one output object
+
+Example output format:
+[
+  {
+    "title": "Дюн",
+    "movie_id": "tt10095582",
+    "confidence": "high",
+    "reasoning": "Description mentions Denis Villeneuve and Timothee Chalamet, matching the 2021 adaptation."
+  },
+  {
+    "title": "Тя",
+    "movie_id": null,
+    "confidence": "low",
+    "reasoning": "Description is too vague to distinguish between the 2013 and 2006 films."
+  }
+]
+
+DATA:

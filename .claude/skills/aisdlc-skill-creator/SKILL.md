@@ -31,11 +31,12 @@ If unclear, ask: "Do you have a specific skill in mind, or would you like me to 
 Read these in parallel:
 
 - `.claude/skills/` directory listing — what skills already exist
-- `ai-core/meta/run-log.jsonl` — which sessions had `skill == "unknown"` (ad-hoc work that bypassed the skill system; these are the strongest signal)
-- `ai-core/meta/skill-usage.json` — invocation counts per skill (low count = underused or badly described)
-- `ai-core/knowledge/components/README.md` — component types in the project
-- `ai-core/knowledge/patterns/coding-patterns.md` — recurring task patterns
-- `CLAUDE.md` — key facts and commands
+- `aisdlc/meta/run-log.jsonl` — which sessions had `skill == "unknown"` (ad-hoc work that bypassed the skill system; these are the strongest signal)
+- `aisdlc/meta/skill-usage.json` — invocation counts per skill (low count = underused or badly described)
+- `aisdlc/knowledge/components/README.md` — component types in the project
+- `aisdlc/knowledge/patterns/coding-patterns.md` — recurring task patterns
+- `aisdlc/INDEX.md` — key facts and commands
+- `CLAUDE.md` (if it exists) — supplementary user-owned context
 
 ### D2: Identify gaps
 
@@ -89,11 +90,12 @@ Ask the user (batch into one message):
 
 Read these before designing the skill:
 
-- `CLAUDE.md` — load order, key facts, existing skill references
-- `ai-core/knowledge/patterns/coding-patterns.md` — patterns the new skill must respect
-- `ai-core/knowledge/components/README.md` — which components the skill may need to read
+- `aisdlc/INDEX.md` — load order, key facts, existing skill references
+- `CLAUDE.md` (if it exists) — supplementary user-owned context
+- `aisdlc/knowledge/patterns/coding-patterns.md` — patterns the new skill must respect
+- `aisdlc/knowledge/components/README.md` — which components the skill may need to read
 
-If the new skill is domain-specific (e.g., database, auth, API contracts), also read the relevant `ai-core/knowledge/components/[name].md`.
+If the new skill is domain-specific (e.g., database, auth, API contracts), also read the relevant `aisdlc/knowledge/components/[name].md`.
 
 ### Step 3: Scope the skill
 
@@ -103,7 +105,7 @@ Decide:
 - **Single responsibility**: one skill = one task type. If the user describes two distinct tasks, split into two skills.
 - **Skill type**: if the primary output is code written to the codebase for a specific role → **Builder type**: read `blueprints/skills/aisdlc-builder/SKILL.md` as the seed in Step 5. Otherwise → **Custom type**: use `references/skill-template.md`.
 - **Body vs. references/**: steps and decision logic in body; templates, checklists, schemas in `references/`. Keep body under 500 lines.
-- **Context loading**: which `ai-core/knowledge/` files should the new skill load at its Step 1?
+- **Context loading**: which `aisdlc/knowledge/` files should the new skill load at its Step 1?
 
 ### Step 4: Draft and confirm
 
@@ -115,7 +117,7 @@ Type:             Builder (seeded from aisdlc-builder/) | Custom (seeded from sk
 Trigger:          "<proposed description>"
 Steps:            [numbered step titles]
 references/:      [list of reference files, or "none"]
-Context loaded:   [which ai-core/ files the new skill reads]
+Context loaded:   [which aisdlc/ files the new skill reads]
 Metrics impact:   +1 to Agentic Skills Coverage (Skills Readiness dimension)
 ```
 
@@ -136,7 +138,7 @@ The `description` field is the sole trigger mechanism and the most failure-prone
 
 ### Step 6: Register in skill-usage.json
 
-After writing the files, add an entry to `ai-core/meta/skill-usage.json`:
+After writing the files, add an entry to `aisdlc/meta/skill-usage.json`:
 
 ```json
 {
@@ -159,7 +161,7 @@ Tell the user:
 
 - File paths created
 - The exact trigger phrases that will activate the skill
-- That the new skill counts toward Agentic Skills Coverage — visible in the next quarterly assessment under `ai-core/knowledge/metrics/dimensions/skills-readiness.md`
+- That the new skill counts toward Agentic Skills Coverage — visible in the next quarterly assessment under `aisdlc/knowledge/metrics/dimensions/skills-readiness.md`
 - How to extend the skill later: run `/aisdlc-skill-creator` again and reference the skill by name
 
 ---
@@ -167,13 +169,13 @@ Tell the user:
 ## Final step — always do this last
 
 ```bash
-bash ai-core/hooks/log-run.sh "aisdlc-skill-creator" "Discovery: recommended N skills | Created <name> skill for <purpose>" "success|error|partial"
+bash aisdlc/hooks/log-run.sh "aisdlc-skill-creator" "Discovery: recommended N skills | Created <name> skill for <purpose>" "success|error|partial"
 ```
 
 Then capture a learning — both discovery and design sessions surface reusable patterns:
 
 ```bash
-bash ai-core/hooks/extract-learning.sh "aisdlc-skill-creator" "Discovery: recommended N skills | Created <name> skill for <purpose>"
+bash aisdlc/hooks/extract-learning.sh "aisdlc-skill-creator" "Discovery: recommended N skills | Created <name> skill for <purpose>"
 ```
 
 ---

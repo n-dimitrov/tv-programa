@@ -38,7 +38,7 @@ Trigger phrases: "<phrase 1>", "<phrase 2>", "<phrase 3>", "<phrase 4>".
 ## Example (complete)
 
 ```
-Generate a database migration for this project following the established migration patterns in ai-core/knowledge/patterns/coding-patterns.md. Use when creating schema changes, adding or removing columns, renaming tables, or writing rollback logic. Trigger phrases: "create a migration", "add a column to", "schema change for", "I need to migrate", "write a migration that". Works with the ORM and migration tool conventions already in use in this project.
+Generate a database migration for this project following the established migration patterns in aisdlc/knowledge/patterns/coding-patterns.md. Use when creating schema changes, adding or removing columns, renaming tables, or writing rollback logic. Trigger phrases: "create a migration", "add a column to", "schema change for", "I need to migrate", "write a migration that". Works with the ORM and migration tool conventions already in use in this project.
 ```
 
 ---

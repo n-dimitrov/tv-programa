@@ -28,9 +28,9 @@ description: >
 
 Read these files before starting:
 
-- `CLAUDE.md` — project conventions, load order, key facts
-- `ai-core/knowledge/patterns/coding-patterns.md` — patterns to follow
-- \[Add any relevant `ai-core/knowledge/components/<name>.md` for domain-specific skills\]
+- `aisdlc/INDEX.md` — project conventions, load order, key facts
+- `aisdlc/knowledge/patterns/coding-patterns.md` — patterns to follow
+- \[Add any relevant `aisdlc/knowledge/components/<name>.md` for domain-specific skills\]
 
 ---
 
@@ -51,7 +51,7 @@ Read these files before starting:
 ## Final step — always do this last
 
 ```bash
-bash ai-core/hooks/log-run.sh "<skill-name>" "<one-line summary of what was done>" "success|error|partial"
+bash aisdlc/hooks/log-run.sh "<skill-name>" "<one-line summary of what was done>" "success|error|partial"
 ```
 
 ---

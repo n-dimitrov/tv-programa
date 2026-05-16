@@ -12,16 +12,17 @@ Validate that what was built matches how this codebase is supposed to work. The 
 ## Step 1: Load context
 
 Read:
-1. **`CLAUDE.md`** — constraints, stack, critical facts
-2. **`ai-core/knowledge/patterns/coding-patterns.md`** — the standard every builder is expected to follow
-3. **Role-specific pattern file** — `ai-core/knowledge/patterns/<role>-patterns.md` if it exists for the role that built this code
-4. **`ai-core/memory/patterns.md`** — emergent patterns from recent sessions that may not yet be in the knowledge files
-5. **`ai-core/memory/anti-patterns.md`** — known failure modes; check if any were repeated in the code being reviewed
-6. **`ai-core/knowledge/architecture/adr/README.md`** — scan for ADRs relevant to the changed area
+1. **`aisdlc/INDEX.md`** — constraints, stack, critical facts
+2. **`CLAUDE.md`** (if it exists) — supplementary user-owned context
+3. **`aisdlc/knowledge/patterns/coding-patterns.md`** — the standard every builder is expected to follow
+3. **Role-specific pattern file** — `aisdlc/knowledge/patterns/<role>-patterns.md` if it exists for the role that built this code
+4. **`aisdlc/memory/patterns.md`** — emergent patterns from recent sessions that may not yet be in the knowledge files
+5. **`aisdlc/memory/anti-patterns.md`** — known failure modes; check if any were repeated in the code being reviewed
+6. **`aisdlc/knowledge/architecture/adr/README.md`** — scan for ADRs relevant to the changed area
 7. Load specific ADRs that govern the code being reviewed
 
 **If files are missing, handle gracefully:**
-- **`CLAUDE.md` missing** → Warn but proceed: "No CLAUDE.md found — reviewing without project context. Run `/aisdlc-onboard` to establish baseline." You can still check code quality and security.
+- **`aisdlc/INDEX.md` missing** → Warn but proceed: "No aisdlc/INDEX.md found — reviewing without project context. Run `/aisdlc-onboard` to establish baseline." You can still check code quality and security.
 - **Pattern docs missing or sparse** → Note in the review: "No established patterns documented — can't verify adherence. Recommend running `/aisdlc-onboard` to extract patterns." Focus review on security, correctness, and obvious anti-patterns.
 - **Memory files missing** → Proceed. No prior memory to check against.
 
@@ -122,26 +123,26 @@ End the review with a summary: "X blocking, Y warnings, Z suggestions." If there
 ## Step 7: Capture memory signals
 
 **If the reviewed code introduced a genuinely new correct pattern:**
-- Append a validation entry to `ai-core/memory/learnings.md`:
+- Append a validation entry to `aisdlc/memory/learnings.md`:
   ```
   [YYYY-MM-DD] reviewer — Validated: <pattern name>. Used correctly in <file>. #candidate-for-promotion
   ```
 
-**If the reviewed code repeated a known failure mode from `ai-core/memory/anti-patterns.md`:**
+**If the reviewed code repeated a known failure mode from `aisdlc/memory/anti-patterns.md`:**
 - Flag it as a blocking finding (the builder should have checked anti-patterns)
 
 **If the reviewed code revealed a new failure mode not yet captured:**
-- Add it to `ai-core/memory/anti-patterns.md`:
+- Add it to `aisdlc/memory/anti-patterns.md`:
   ```
   [YYYY-MM-DD] FAILED: <what was done wrong> — <why it's wrong> [Session: reviewer / <task>]
   ```
 
 **If an existing pattern doc is wrong or outdated:**
-- Update `ai-core/knowledge/patterns/coding-patterns.md` (or the role-specific file)
+- Update `aisdlc/knowledge/patterns/coding-patterns.md` (or the role-specific file)
 - Note it in the review: "The pattern doc for X was incorrect — updated to match what the codebase actually does."
 
 **Promotion tagging:**
-Scan `ai-core/memory/learnings.md` for entries tagged `#candidate-for-promotion`. If any has been validated 2+ times (multiple `[Validated ...]` annotations or repeated appearance across sessions), retag it `#ready-for-promotion`.
+Scan `aisdlc/memory/learnings.md` for entries tagged `#candidate-for-promotion`. If any has been validated 2+ times (multiple `[Validated ...]` annotations or repeated appearance across sessions), retag it `#ready-for-promotion`.
 
 If any entries were retagged, tell the user: "X entries in memory/learnings.md are ready for promotion — run `/aisdlc-promote` when convenient."
 
@@ -153,23 +154,23 @@ If any entries were retagged, tell the user: "X entries in memory/learnings.md a
 
 Before closing the session, log it:
 ```bash
-bash ai-core/hooks/log-run.sh "aisdlc-reviewer" "<one-line summary of what was reviewed and outcome>" "success|error|partial"
+bash aisdlc/hooks/log-run.sh "aisdlc-reviewer" "<one-line summary of what was reviewed and outcome>" "success|error|partial"
 ```
 
-Example: `bash ai-core/hooks/log-run.sh "aisdlc-reviewer" "Reviewed auth PR — approved with 2 pattern violations fixed" "success"`
+Example: `bash aisdlc/hooks/log-run.sh "aisdlc-reviewer" "Reviewed auth PR — approved with 2 pattern violations fixed" "success"`
 
 Then capture a learning — reviewer sessions surface pattern violations and quality signals:
 ```bash
-bash ai-core/hooks/extract-learning.sh "aisdlc-reviewer" "<one-line summary of what was reviewed and outcome>"
+bash aisdlc/hooks/extract-learning.sh "aisdlc-reviewer" "<one-line summary of what was reviewed and outcome>"
 ```
 
 If the outcome was `error` or `partial`, also capture the failure so it feeds `anti-patterns.md`:
 ```bash
-bash ai-core/hooks/summarize-failure.sh "aisdlc-reviewer" "<one-line summary>" "<what went wrong>"
+bash aisdlc/hooks/summarize-failure.sh "aisdlc-reviewer" "<one-line summary>" "<what went wrong>"
 ```
 
 ---
 
 ## Reference files
 
-None. The review steps above are self-contained. For security-sensitive or compliance-relevant reviews, load the relevant ADRs and any compliance docs from `ai-core/knowledge/`.
+None. The review steps above are self-contained. For security-sensitive or compliance-relevant reviews, load the relevant ADRs and any compliance docs from `aisdlc/knowledge/`.

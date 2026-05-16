@@ -24,7 +24,7 @@ After copying, update two things in each copy's `SKILL.md`:
 1. `name:` frontmatter → e.g. `backend-builder`
 2. `description:` frontmatter → scope it to the role (see examples at end of this file)
 
-Each role-specific builder skill can also load its own pattern file (e.g. `backend-builder` loads `ai-core/knowledge/patterns/backend-patterns.md`) in addition to the shared `ai-core/knowledge/patterns/coding-patterns.md`.
+Each role-specific builder skill can also load its own pattern file (e.g. `backend-builder` loads `aisdlc/knowledge/patterns/backend-patterns.md`) in addition to the shared `aisdlc/knowledge/patterns/coding-patterns.md`.
 
 ---
 
@@ -32,22 +32,23 @@ Each role-specific builder skill can also load its own pattern file (e.g. `backe
 
 Before writing any code, read all of these:
 
-1. **`CLAUDE.md`** — understand the project's constraints, stack, and any critical facts
-2. **`ai-core/knowledge/patterns/coding-patterns.md`** — shared patterns that apply across all builder roles; every pattern here must be followed
-3. **Role-specific pattern file** — if a `ai-core/knowledge/patterns/<role>-patterns.md` exists for this builder role, read it; it overrides or extends the shared patterns for this domain
-4. **`ai-core/memory/anti-patterns.md`** — check for known failed approaches in this codebase before proposing an implementation strategy
+1. **`aisdlc/INDEX.md`** — understand the project's constraints, stack, and any critical facts
+2. **`CLAUDE.md`** (if it exists) — supplementary user-owned context
+3. **`aisdlc/knowledge/patterns/coding-patterns.md`** — shared patterns that apply across all builder roles; every pattern here must be followed
+3. **Role-specific pattern file** — if a `aisdlc/knowledge/patterns/<role>-patterns.md` exists for this builder role, read it; it overrides or extends the shared patterns for this domain
+4. **`aisdlc/memory/anti-patterns.md`** — check for known failed approaches in this codebase before proposing an implementation strategy
 
 **If files are missing, handle gracefully:**
-- **`CLAUDE.md` missing** → Stop. Tell the user: "This project hasn't been onboarded yet. Run `/aisdlc-onboard` first." This is the only hard stop — without CLAUDE.md, you have no project context.
-- **`ai-core/knowledge/patterns/coding-patterns.md` missing or empty** → Warn but proceed. Tell the user: "No coding patterns documented yet. I'll grep the codebase for existing patterns as I go, but consider running `/aisdlc-onboard` to extract them systematically."
-- **`ai-core/memory/anti-patterns.md` missing** → Proceed. No anti-patterns means nothing has failed yet.
+- **`aisdlc/INDEX.md` missing** → Stop. Tell the user: "This project hasn't been onboarded yet. Run `/aisdlc-onboard` first." This is the only hard stop — without INDEX.md, you have no project context.
+- **`aisdlc/knowledge/patterns/coding-patterns.md` missing or empty** → Warn but proceed. Tell the user: "No coding patterns documented yet. I'll grep the codebase for existing patterns as I go, but consider running `/aisdlc-onboard` to extract them systematically."
+- **`aisdlc/memory/anti-patterns.md` missing** → Proceed. No anti-patterns means nothing has failed yet.
 - **ADR index missing** → Proceed. Note: "No ADRs found — if this feature involves structural decisions, consider running `/aisdlc-architect` first."
 
 Then check for an active plan:
-5. **`ai-core/plans/`** — if this directory exists, check for any plan with `Status: active` that assigns tasks to your builder role. If found, load it to understand your task's context, dependencies, and expected outputs.
+5. **`aisdlc/plans/`** — if this directory exists, check for any plan with `Status: active` that assigns tasks to your builder role. If found, load it to understand your task's context, dependencies, and expected outputs.
 
 Then check for relevant ADRs:
-6. **`ai-core/knowledge/architecture/adr/README.md`** — scan for ADRs that constrain this feature area
+6. **`aisdlc/knowledge/architecture/adr/README.md`** — scan for ADRs that constrain this feature area
 7. Load specific ADRs that directly apply (e.g. backend-builder implementing auth should load the auth ADR; frontend-builder adding a new route should load any routing/SSR ADR)
 
 ---
@@ -77,7 +78,7 @@ Wait for confirmation. Do not start implementing until the user agrees.
 
 ## Step 3: Implement following discovered patterns
 
-**If patterns exist** (`ai-core/knowledge/patterns/coding-patterns.md` or the role-specific pattern file has real content):
+**If patterns exist** (`aisdlc/knowledge/patterns/coding-patterns.md` or the role-specific pattern file has real content):
 - Follow them exactly — same error handling style, same logging calls, same data access path, same naming conventions
 - When in doubt between two approaches, grep the codebase for the most common pattern and use that
 
@@ -97,16 +98,16 @@ Wait for confirmation. Do not start implementing until the user agrees.
 ## Step 4: After implementing, update docs and capture learnings
 
 **If you introduced a novel pattern** not in the pattern docs:
-Add it to `ai-core/knowledge/patterns/coding-patterns.md` (shared) or `ai-core/knowledge/patterns/<role>-patterns.md` (role-specific) with a real code example from what you just wrote.
+Add it to `aisdlc/knowledge/patterns/coding-patterns.md` (shared) or `aisdlc/knowledge/patterns/<role>-patterns.md` (role-specific) with a real code example from what you just wrote.
 
 **If you created or significantly changed a component**:
-Update or create `ai-core/knowledge/components/[name].md` — updated public interface, new implementation notes, reference to governing ADR.
+Update or create `aisdlc/knowledge/components/[name].md` — updated public interface, new implementation notes, reference to governing ADR.
 
 **If you made a structural change that affects the architecture overview**:
-Update `ai-core/knowledge/architecture/overview.md` — topology section if you added/changed how components interact.
+Update `aisdlc/knowledge/architecture/overview.md` — topology section if you added/changed how components interact.
 
 **If you used a non-obvious approach that worked well**:
-Append a one-liner to `ai-core/memory/learnings.md`:
+Append a one-liner to `aisdlc/memory/learnings.md`:
 ```
 [YYYY-MM-DD] <role> — <what worked and why> #candidate-for-promotion
 ```
@@ -118,13 +119,13 @@ Keep it brief — this is a signal for the reviewer, not a full pattern doc.
 
 Before declaring done, verify:
 
-- [ ] All new code follows patterns from `ai-core/knowledge/patterns/coding-patterns.md` and the role-specific pattern file
-- [ ] `ai-core/memory/anti-patterns.md` was checked — no known failure modes were repeated
+- [ ] All new code follows patterns from `aisdlc/knowledge/patterns/coding-patterns.md` and the role-specific pattern file
+- [ ] `aisdlc/memory/anti-patterns.md` was checked — no known failure modes were repeated
 - [ ] Error handling matches the project's established style
 - [ ] No new libraries introduced without user approval
 - [ ] Tests follow the project's test patterns
 - [ ] Pattern docs updated if a new pattern was introduced
-- [ ] `ai-core/knowledge/components/` updated if a component was created or significantly changed
+- [ ] `aisdlc/knowledge/components/` updated if a component was created or significantly changed
 
 Read `references/implementation-checklist.md` for the expanded checklist when the feature spans multiple components.
 
@@ -155,19 +156,19 @@ description: Implement mobile features — screens, navigation, native integrati
 
 Before closing the session, log it — use the actual role name you renamed this skill to:
 ```bash
-bash ai-core/hooks/log-run.sh "<your-builder-role>" "<one-line summary of what was built>" "success|error|partial"
+bash aisdlc/hooks/log-run.sh "<your-builder-role>" "<one-line summary of what was built>" "success|error|partial"
 ```
 
-Example: `bash ai-core/hooks/log-run.sh "backend-builder" "Implemented JWT auth endpoint with refresh token support" "success"`
+Example: `bash aisdlc/hooks/log-run.sh "backend-builder" "Implemented JWT auth endpoint with refresh token support" "success"`
 
 Then capture a learning — builder sessions are high-signal for the memory pipeline:
 ```bash
-bash ai-core/hooks/extract-learning.sh "<your-builder-role>" "<one-line summary of what was built>"
+bash aisdlc/hooks/extract-learning.sh "<your-builder-role>" "<one-line summary of what was built>"
 ```
 
 If the outcome was `error` or `partial`, also capture the failure so it feeds `anti-patterns.md`:
 ```bash
-bash ai-core/hooks/summarize-failure.sh "<your-builder-role>" "<one-line summary>" "<what went wrong>"
+bash aisdlc/hooks/summarize-failure.sh "<your-builder-role>" "<one-line summary>" "<what went wrong>"
 ```
 
 ---

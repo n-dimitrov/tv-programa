@@ -1,11 +1,44 @@
 ---
 name: aisdlc-onboard
-description: Bootstrap a project's AI-SDLC documentation by generating CLAUDE.md and an `ai-core/` folder structure. Use this skill when a user wants to set up Claude Code for a new or existing project, asks to "onboard" a codebase, wants Claude to understand their project, needs a CLAUDE.md generated, or wants to initialize the AI-SDLC framework in their repo. Trigger for both brand-new projects (interview mode) and existing codebases (discovery mode).
+description: Bootstrap a project's AI-SDLC documentation by generating aisdlc/INDEX.md and the `aisdlc/` folder structure. Use this skill when a user wants to set up Claude Code for a new or existing project, asks to "onboard" a codebase, wants Claude to understand their project, or wants to initialize the AI-SDLC framework in their repo. Trigger for both brand-new projects (interview mode) and existing codebases (discovery mode).
 ---
 
 # aisdlc-onboard
 
-Generate a project's `CLAUDE.md` and `ai-core/` skeleton so that Claude Code becomes a useful, context-aware collaborator from the first interaction.
+Generate a project's `aisdlc/INDEX.md` and `aisdlc/` skeleton so that Claude Code becomes a useful, context-aware collaborator from the first interaction. The root `CLAUDE.md` is owned by the user — this skill never creates or modifies it.
+
+---
+
+## Step 0: Register the Status Line (do this first, before anything else)
+
+Before mode detection, before any reads, register the `statusLine` in `.claude/settings.local.json` so that every subsequent response in this session is tracked.
+
+1. Read `.claude/settings.local.json` (create it with `{}` if missing).
+2. Check whether a `statusLine` key already exists:
+   - **If `statusLine` is already set:** Do NOT overwrite it. Tell the user: "Found an existing statusLine in settings.local.json — keeping it as-is. Note: if it doesn't point to `capture-session-metrics.sh`, token/cost metrics won't be captured for this session." Then proceed to Step 1.
+   - **If `statusLine` is not set:** Merge in the following key and write the file back, preserving all other existing keys:
+     ```json
+     {
+       "statusLine": {
+         "type": "command",
+         "command": "bash aisdlc/hooks/capture-session-metrics.sh"
+       }
+     }
+     ```
+
+This must happen as the very first action so that token/cost/duration data is captured for all subsequent responses. Without it, `log-run.sh` will record zeros at session end.
+
+---
+
+## Step 1: Read Existing CLAUDE.md for Context
+
+Before detecting the mode, check whether a `CLAUDE.md` already exists at the project root.
+
+**If `CLAUDE.md` exists:** Read the full contents into context. It likely contains valuable project description, dev commands, key facts, and conventions that may not be fully discoverable from code alone. This content will inform `aisdlc/INDEX.md` generation. Do NOT modify, back up, or overwrite the user's `CLAUDE.md`.
+
+**If `CLAUDE.md` does not exist:** proceed directly to mode detection. After onboarding, remind the user: "You'll need a root `CLAUDE.md` that references `aisdlc/INDEX.md` in its load order for Claude Code to pick up the generated context automatically."
+
+---
 
 There are two modes — detect which applies before doing anything else:
 
@@ -26,8 +59,8 @@ Ask the user these questions (you can batch them into one message):
 
 Once you have answers, generate:
 
-- `CLAUDE.md` using the **new project template** — read `references/claude-md-template-new.md`
-- Full `ai-core/` skeleton (see Directory Skeleton below)
+- `aisdlc/INDEX.md` using the **new project template** — read `references/index-template-new.md`. **If a CLAUDE.md was read in Step 1**, incorporate any relevant content (project description, dev commands, key facts, conventions) into the template rather than discarding it.
+- Full `aisdlc/` skeleton (see Directory Skeleton below)
 
 Then create role-specific builder skills (see **Builder Instantiation** below).
 
@@ -47,7 +80,7 @@ Read all of these simultaneously to get a broad picture:
 - Entry points: `main.*`, `index.*`, `app.*`, `server.*`, `cmd/*/main.go`
 - CI configs: `.github/workflows/`, `.gitlab-ci.yml`, `Dockerfile`, `docker-compose.yml`
 - Top-level directory listing (use Glob `*` and `**/*` with depth limit)
-- Existing docs if any: `README.md`, `ai-core/`, `wiki/`, `ADR/`
+- Existing docs if any: `CLAUDE.md` (already read in Step 1 if present), `README.md`, `aisdlc/`, `wiki/`, `ADR/`, `INDEX.md`
 
 After Phase 1, write down what you know and what you don't. You'll fill gaps in Phase 2.
 
@@ -61,7 +94,7 @@ Use the `references/exploration-guide.md` for heuristics on what to read in comm
 
 ### Phase 3: Pattern Extraction
 
-Extract the following from the code you've read. These go directly into `ai-core/knowledge/patterns/coding-patterns.md` with real code examples:
+Extract the following from the code you've read. These go directly into `aisdlc/knowledge/patterns/coding-patterns.md` with real code examples:
 
 - **File organization**: Where do models/controllers/services/routes live?
 - **Error handling**: How are errors propagated and surfaced? (exceptions, Result types, error codes?)
@@ -84,26 +117,26 @@ Based on everything read, synthesize:
 
 Generate all of the following:
 
-**`CLAUDE.md`** — use `references/claude-md-template-existing.md`. Fill every section with specifics from the codebase. Do not leave placeholder text.
+**`aisdlc/INDEX.md`** — use `references/index-template-existing.md`. Fill every section with specifics from the codebase. Do not leave placeholder text. **If a CLAUDE.md was read in Step 1**, cross-reference it when populating each section: preserve any information (project description, dev commands, key facts, conventions) that is not contradicted by fresh code discovery. When the old content conflicts with what you found in the code, prefer the code-derived fact and mark the discrepancy `[VERIFY]`.
 
-**`ai-core/knowledge/architecture/overview.md`** — topology diagram (ASCII is fine), data flow description, key boundaries, external dependencies.
+**`aisdlc/knowledge/architecture/overview.md`** — topology diagram (ASCII is fine), data flow description, key boundaries, external dependencies.
 
-**`ai-core/knowledge/architecture/adr/ADR-0001-existing-decisions.md`** — document 3-7 significant decisions already baked into the codebase (the framework choice, the database choice, the auth approach, etc.). These are decisions-already-made, not proposals. Status: `Accepted`.
+**`aisdlc/knowledge/architecture/adr/ADR-0001-existing-decisions.md`** — document 3-7 significant decisions already baked into the codebase (the framework choice, the database choice, the auth approach, etc.). These are decisions-already-made, not proposals. Status: `Accepted`.
 
-**`ai-core/knowledge/components/[name].md`** — one file per major component/service identified. A "major component" is anything with a distinct responsibility boundary: a service, a background worker, a significant library module, or a subsystem with its own data model. Rule of thumb: if it has its own directory or would warrant its own ADR, it's a component. Use the component doc format from `references/exploration-guide.md`.
+**`aisdlc/knowledge/components/[name].md`** — one file per major component/service identified. A "major component" is anything with a distinct responsibility boundary: a service, a background worker, a significant library module, or a subsystem with its own data model. Rule of thumb: if it has its own directory or would warrant its own ADR, it's a component. Use the component doc format from `references/exploration-guide.md`.
 
-**`ai-core/knowledge/components/README.md`** — component registry table. Add one row per component generated above:
+**`aisdlc/knowledge/components/README.md`** — component registry table. Add one row per component generated above:
 ```markdown
 | Component | Description | Doc |
 |---|---|---|
 | [name] | [one-line purpose] | [name.md](./[name].md) |
 ```
 
-**`ai-core/knowledge/patterns/coding-patterns.md`** — populated with real examples from Phase 3.
+**`aisdlc/knowledge/patterns/coding-patterns.md`** — populated with real examples from Phase 3.
 
-**`ai-core/knowledge/conventions.md`** — cross-cutting naming, formatting, commit style extracted from the codebase or team norms. Mark unknowns `[VERIFY]`.
+**`aisdlc/knowledge/conventions.md`** — cross-cutting naming, formatting, commit style extracted from the codebase or team norms. Mark unknowns `[VERIFY]`.
 
-**`ai-core/knowledge/domain.md`** — core entities, key relationships, ubiquitous language extracted from the code. Mark unknowns `[VERIFY]`.
+**`aisdlc/knowledge/domain.md`** — core entities, key relationships, ubiquitous language extracted from the code. Mark unknowns `[VERIFY]`.
 
 Also create all memory, meta, and hook stubs (see Directory Skeleton below) — even for existing projects, these start empty.
 
@@ -140,7 +173,7 @@ After onboarding (both modes), create role-specific builder skills based on the 
 1. Copy `.claude/skills/aisdlc-builder/` to `.claude/skills/<role>-builder/`
 2. Update the `name:` frontmatter to `<role>-builder`
 3. Update the `description:` frontmatter using the role-scoped descriptions at the end of the builder template
-4. Create an empty `ai-core/knowledge/patterns/<role>-patterns.md` stub with a header: `# <Role> Patterns\n\nRole-specific patterns for <role>-builder. Extends ai-core/knowledge/patterns/coding-patterns.md.`
+4. Create an empty `aisdlc/knowledge/patterns/<role>-patterns.md` stub with a header: `# <Role> Patterns\n\nRole-specific patterns for <role>-builder. Extends aisdlc/knowledge/patterns/coding-patterns.md.`
 
 **Ask the user to confirm** the detected roles before creating: "Based on your stack, I'll create these builder roles: [list]. Add or remove any?"
 
@@ -153,7 +186,8 @@ If no stack is detected or the project is too early, create a single `fullstack-
 Always create this full structure (empty stubs for new projects, populated knowledge for existing):
 
 ```
-ai-core/
+aisdlc/
+├── INDEX.md                     # Generated project context (load this from root CLAUDE.md)
 ├── knowledge/
 │   ├── architecture/
 │   │   ├── overview.md
@@ -183,15 +217,6 @@ ai-core/
     └── summarize-failure.sh       # Functional script — make executable
 ```
 
-After creating the hooks, register the status line in `.claude/settings.local.json`:
-```json
-{
-  "status_line": "bash ai-core/hooks/capture-session-metrics.sh"
-}
-```
-
-The `status_line` command runs after each Claude Code response. It receives a JSON object on stdin with token counts, cost, and duration — and writes the cumulative values to `ai-core/meta/.session-metrics.json`. When a skill calls `log-run.sh` at session end, it reads this file and includes the metrics in `run-log.jsonl`.
-
 > **Note:** `log-run.sh` is **not** registered as a Stop hook — it requires positional arguments (`<skill>`, `<task_summary>`, `<outcome>`) that the hook API cannot provide. Each skill calls it explicitly in its "Final step" section. The same applies to `extract-learning.sh` and `summarize-failure.sh`.
 
 > **Note:** `extract-learning.sh` and `summarize-failure.sh` are **not** registered as automatic hooks — they require positional arguments (`<skill>`, `<task_summary>`, etc.) and must be called explicitly by builder and reviewer skills in their "Final step" section.
@@ -200,7 +225,7 @@ The `status_line` command runs after each Claude Code response. It receives a JS
 
 ## Onboarding Report
 
-After completing onboarding (either mode), generate a comprehensive report at `ai-core/meta/onboarding-report.md` using this structure:
+After completing onboarding (either mode), generate a comprehensive report at `aisdlc/meta/onboarding-report.md` using this structure:
 
 ```markdown
 # Onboarding Report
@@ -245,14 +270,18 @@ After completing onboarding (either mode), generate a comprehensive report at `a
 ## Generated Artifacts
 
 ### Documentation
-- [ ] `CLAUDE.md`
-- [ ] `ai-core/knowledge/architecture/overview.md`
-- [ ] `ai-core/knowledge/architecture/adr/README.md`
-- [ ] `ai-core/knowledge/components/README.md`
-- [ ] `ai-core/knowledge/patterns/coding-patterns.md`
-- [ ] `ai-core/knowledge/conventions.md`
-- [ ] `ai-core/knowledge/domain.md`
-- [ ] `ai-core/knowledge/ownership.md`
+- [ ] `aisdlc/INDEX.md`
+- [ ] `aisdlc/knowledge/architecture/overview.md`
+- [ ] `aisdlc/knowledge/architecture/adr/README.md`
+- [ ] `aisdlc/knowledge/components/README.md`
+- [ ] `aisdlc/knowledge/patterns/coding-patterns.md`
+- [ ] `aisdlc/knowledge/conventions.md`
+- [ ] `aisdlc/knowledge/domain.md`
+- [ ] `aisdlc/knowledge/ownership.md`
+
+### Prior CLAUDE.md (if applicable)
+- **Content incorporated:** <list sections/facts carried over from the user's CLAUDE.md into INDEX.md>
+- **Content superseded:** <list items where code discovery contradicted the old file>
 
 ### Components Documented
 <List each component with link: [component-name](../knowledge/components/component-name.md)>
@@ -282,7 +311,7 @@ After completing onboarding (either mode), generate a comprehensive report at `a
 - **Time Spent:** <estimate in minutes>
 ```
 
-Present the report location to the user: "Onboarding complete! Full report saved to `ai-core/meta/onboarding-report.md`. Please review the [VERIFY] items and update the knowledge base as needed."
+Present the report location to the user: "Onboarding complete! Full report saved to `aisdlc/meta/onboarding-report.md`. Please review the [VERIFY] items and update the knowledge base as needed."
 
 ---
 
@@ -290,20 +319,20 @@ Present the report location to the user: "Onboarding complete! Full report saved
 
 Before closing the session, log it:
 ```bash
-bash ai-core/hooks/log-run.sh "aisdlc-onboard" "<one-line summary of what was onboarded>" "success|error|partial"
+bash aisdlc/hooks/log-run.sh "aisdlc-onboard" "<one-line summary of what was onboarded>" "success|error|partial"
 ```
 
-Example: `bash ai-core/hooks/log-run.sh "aisdlc-onboard" "Generated CLAUDE.md and ai-core/ for payments-service" "success"`
+Example: `bash aisdlc/hooks/log-run.sh "aisdlc-onboard" "Generated aisdlc/INDEX.md and aisdlc/ for payments-service" "success"`
 
 If the outcome was `error` or `partial`, also capture the failure so it feeds `anti-patterns.md`:
 ```bash
-bash ai-core/hooks/summarize-failure.sh "aisdlc-onboard" "<one-line summary>" "<what went wrong>"
+bash aisdlc/hooks/summarize-failure.sh "aisdlc-onboard" "<one-line summary>" "<what went wrong>"
 ```
 
 ---
 
 ## Reference files
 
-- `references/claude-md-template-new.md` — template for new projects
-- `references/claude-md-template-existing.md` — template for existing codebases (richer, more sections)
+- `references/index-template-new.md` — template for new projects
+- `references/index-template-existing.md` — template for existing codebases (richer, more sections)
 - `references/exploration-guide.md` — heuristics for reading common project types, component doc format

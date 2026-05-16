@@ -89,6 +89,7 @@ class ActiveChannelFetcher:
 
         # Track Oscar matches
         oscar_matches = []
+        ambiguous_items = []
 
         for idx, channel in enumerate(self.channels, 1):
             channel_id = channel.get('id')
@@ -115,6 +116,18 @@ class ActiveChannelFetcher:
                             'channel_id': channel_id,
                             **match_info
                         })
+                    else:
+                        title = program.get("title", "")
+                        description = program.get("description") or program.get("full") or ""
+                        _, candidates = self.oscar_lookup.find_movie_candidates(title, description)
+                        if candidates:
+                            if not self.oscar_lookup._is_blacklisted(title, channel_id, target_date, program.get("time", "")):
+                                ambiguous_items.append({
+                                    "program": program,
+                                    "channel_id": channel_id,
+                                    "channel_name": channel_name,
+                                    "candidates": candidates,
+                                })
 
             if programs:
                 result['programs'][channel_id] = {
@@ -130,6 +143,11 @@ class ActiveChannelFetcher:
                 print(f"✓ ({len(programs)} programs)")
             else:
                 print("✗ (no programs)")
+
+        # AI disambiguation for ambiguous titles
+        if ambiguous_items and self.ai_validate:
+            resolved = self._resolve_ambiguous_matches(ambiguous_items, target_date)
+            oscar_matches.extend(resolved)
 
         # Build and output Oscar matches JSON
         if oscar_matches:
@@ -243,6 +261,95 @@ class ActiveChannelFetcher:
         except json.JSONDecodeError as e:
             print(f"ERROR: Failed to parse AI API response: {e}")
             return None
+
+    def _resolve_ambiguous_matches(self, ambiguous_items: List[Dict], date: str) -> List[Dict]:
+        """Send ambiguous Oscar title matches to AI for disambiguation."""
+        print(f"\n{'='*60}")
+        print(f"AI DISAMBIGUATION ({len(ambiguous_items)} ambiguous titles)")
+        print("="*60)
+
+        prompt_template = self.storage.read_text("data/prompts/oscar_disambiguation.txt")
+        if not prompt_template:
+            print("ERROR: Prompt template not found at data/prompts/oscar_disambiguation.txt")
+            return []
+
+        batch = []
+        for item in ambiguous_items:
+            program = item["program"]
+            batch.append({
+                "title": program.get("title", ""),
+                "description": program.get("description") or program.get("full") or "",
+                "channel": item["channel_name"],
+                "time": program.get("time", ""),
+                "candidates": [
+                    {"movie_id": c["movie_id"], "title_en": c["title_en"],
+                     "title_bg": c.get("title_bg"), "year": c["year"],
+                     "overview": (c.get("overview") or "")[:150]}
+                    for c in item["candidates"]
+                ],
+            })
+
+        json_data = json.dumps(batch, ensure_ascii=False, indent=2)
+        full_prompt = prompt_template + json_data
+
+        prompt_file = f"data/results/{date}_oscar_disambiguation_prompt.txt"
+        self.storage.write_text(prompt_file, full_prompt)
+
+        ai_response_text = self._call_ai_api(full_prompt)
+        if not ai_response_text:
+            print("AI disambiguation failed (see logs)")
+            print("="*60 + "\n")
+            return []
+
+        try:
+            ai_response_text = ai_response_text.strip()
+            if ai_response_text.startswith("```"):
+                lines = ai_response_text.split("\n")
+                ai_response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else ai_response_text
+
+            resolutions = json.loads(ai_response_text)
+            if not isinstance(resolutions, list):
+                print(f"ERROR: AI response is not a JSON array: {type(resolutions)}")
+                return []
+
+            response_data = {
+                "status": "ai_disambiguated",
+                "date": date,
+                "total_ambiguous": len(ambiguous_items),
+                "resolutions": resolutions,
+                "raw_response": ai_response_text,
+            }
+            response_file = f"data/results/{date}_oscar_disambiguation_response.json"
+            self.storage.write_json(response_file, response_data)
+
+        except json.JSONDecodeError as e:
+            print(f"ERROR: Failed to parse AI disambiguation response: {e}")
+            return []
+
+        resolved_matches = []
+        for item, resolution in zip(ambiguous_items, resolutions):
+            movie_id = resolution.get("movie_id")
+            confidence = resolution.get("confidence", "")
+            if not movie_id or confidence != "high":
+                title = item["program"].get("title", "")
+                print(f"  ⊘ Skipped: {title} (confidence: {confidence})")
+                continue
+
+            program = item["program"]
+            match_info = self.oscar_lookup.annotate_program_with_movie_id(program, movie_id)
+            if match_info:
+                resolved_matches.append({
+                    "date": date,
+                    "time": program.get("time", ""),
+                    "channel_name": item["channel_name"],
+                    "channel_id": item["channel_id"],
+                    **match_info,
+                })
+                print(f"  ✓ Resolved: {program.get('title', '')} → {match_info.get('matched_title_en', '')} ({match_info.get('year', '')})")
+
+        print(f"\n✓ Resolved {len(resolved_matches)} of {len(ambiguous_items)} ambiguous titles")
+        print("="*60 + "\n")
+        return resolved_matches
 
     def _run_ai_validation(self, matches_json: List[Dict], date: str) -> Optional[List[Dict]]:
         """Run AI validation on Oscar matches
@@ -411,13 +518,17 @@ class ActiveChannelFetcher:
             match = fp["match"]
             validation = fp["validation"]
 
-            # Create blacklist entry (scope: broadcast for specificity)
             tv_title = match.get("tv_title", match.get("title", ""))
             tv_time = match.get("time", "")
 
+            # Graduated scope: non-movie content gets scope:all, wrong versions get scope:broadcast
+            NOT_A_MOVIE_FLAGS = {"TV show", "Talk show", "Sports", "Series", "News", "Not a movie"}
+            red_flags = set(validation.get("red_flags", []))
+            scope = "all" if red_flags & NOT_A_MOVIE_FLAGS else "broadcast"
+
             entry = {
                 "title": tv_title,
-                "scope": "broadcast",
+                "scope": scope,
                 "channel_id": match.get("channel_id", ""),
                 "date": date,
                 "time": tv_time,
@@ -432,12 +543,24 @@ class ActiveChannelFetcher:
 
             already_exists = False
             for existing in data["excluded"]:
-                if (_normalize_title(existing.get("title", "")) == title_normalized and
+                existing_title = _normalize_title(existing.get("title", ""))
+                if existing_title != title_normalized:
+                    continue
+                existing_scope = existing.get("scope", "broadcast")
+                # scope:all covers everything — no need for another entry
+                if existing_scope == "all":
+                    already_exists = True
+                    break
+                # For narrower scopes, check exact match
+                if (scope == "broadcast" and existing_scope == "broadcast" and
                     existing.get("channel_id") == entry["channel_id"] and
                     existing.get("date") == entry["date"] and
                     existing.get("time") == entry["time"]):
                     already_exists = True
                     break
+                if (scope == "all" and existing_scope in ("broadcast", "channel")):
+                    # New scope:all supersedes narrower entries — allow adding it
+                    continue
 
             if not already_exists:
                 data["excluded"].append(entry)
