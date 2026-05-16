@@ -15,17 +15,18 @@ The value of this skill is **project-specific reasoning** — generic pros/cons 
 
 Before anything else, read:
 
-1. `CLAUDE.md` — understand the project's constraints, stack, current phase
-2. `ai-core/knowledge/architecture/adr/README.md` — read the ADR index to understand decisions already made (load only this index, not every ADR)
+1. `aisdlc/INDEX.md` — understand the project's constraints, stack, current phase
+2. `CLAUDE.md` (if it exists) — supplementary user-owned context
+3. `aisdlc/knowledge/architecture/adr/README.md` — read the ADR index to understand decisions already made (load only this index, not every ADR)
 3. Any specific ADRs that are clearly relevant to this decision (the index will tell you which)
-4. `ai-core/knowledge/architecture/overview.md` if the decision touches system topology
-5. `ai-core/memory/anti-patterns.md` — check for failed approaches relevant to this decision area before framing options
+4. `aisdlc/knowledge/architecture/overview.md` if the decision touches system topology
+5. `aisdlc/memory/anti-patterns.md` — check for failed approaches relevant to this decision area before framing options
 
 **If files are missing, handle gracefully:**
-- **`CLAUDE.md` missing** → Stop. Tell the user: "Run `/aisdlc-onboard` first — making architectural decisions without project context risks contradicting what's already built."
-- **ADR index missing** → Proceed but warn: "No ADR index found. I'll create `ai-core/knowledge/architecture/adr/README.md` when writing this ADR."
-- **`ai-core/memory/anti-patterns.md` missing** → Proceed. No anti-patterns recorded yet.
-- **`ai-core/knowledge/architecture/overview.md` missing** → Proceed if the decision doesn't require topology context.
+- **`aisdlc/INDEX.md` missing** → Stop. Tell the user: "Run `/aisdlc-onboard` first — making architectural decisions without project context risks contradicting what's already built."
+- **ADR index missing** → Proceed but warn: "No ADR index found. I'll create `aisdlc/knowledge/architecture/adr/README.md` when writing this ADR."
+- **`aisdlc/memory/anti-patterns.md` missing** → Proceed. No anti-patterns recorded yet.
+- **`aisdlc/knowledge/architecture/overview.md` missing** → Proceed if the decision doesn't require topology context.
 
 ---
 
@@ -87,21 +88,21 @@ Wait for confirmation. Don't write the ADR until the user agrees with the decisi
 
 ## Step 6: Generate the ADR and update docs
 
-**Determine the next ADR number**: Read `ai-core/knowledge/architecture/adr/README.md` — use the next sequential number after the highest one listed.
+**Determine the next ADR number**: Read `aisdlc/knowledge/architecture/adr/README.md` — use the next sequential number after the highest one listed.
 
-**Create the file**: `ai-core/knowledge/architecture/adr/ADR-XXXX-short-name.md`
+**Create the file**: `aisdlc/knowledge/architecture/adr/ADR-XXXX-short-name.md`
 
 Use the template in `references/adr-template.md`. Fill every section with specifics — no placeholder text. Options that were considered but not chosen go in the "Options considered" section with a brief note on why they were rejected.
 
 **After writing the ADR:**
 
-1. **Update the ADR index** (`ai-core/knowledge/architecture/adr/README.md`): Add a row to the table with the new ADR number, title, status (Accepted), and date.
+1. **Update the ADR index** (`aisdlc/knowledge/architecture/adr/README.md`): Add a row to the table with the new ADR number, title, status (Accepted), and date.
 
-2. **Update `ai-core/knowledge/architecture/overview.md`**: If the decision changes the topology, data flow, or key boundaries described there, update the relevant section.
+2. **Update `aisdlc/knowledge/architecture/overview.md`**: If the decision changes the topology, data flow, or key boundaries described there, update the relevant section.
 
-3. **Update component docs**: If the decision significantly changes how a component works, update its `ai-core/knowledge/components/[name].md` and add a reference to the new ADR.
+3. **Update component docs**: If the decision significantly changes how a component works, update its `aisdlc/knowledge/components/[name].md` and add a reference to the new ADR.
 
-4. **Check memory for promotable learnings**: Scan `ai-core/memory/learnings.md` for entries relevant to this decision. If any learning was effectively resolved by this ADR, annotate it: `[Promoted to ADR-XXXX — {date}]`.
+4. **Check memory for promotable learnings**: Scan `aisdlc/memory/learnings.md` for entries relevant to this decision. If any learning was effectively resolved by this ADR, annotate it: `[Promoted to ADR-XXXX — {date}]`.
 
 ---
 
@@ -109,14 +110,14 @@ Use the template in `references/adr-template.md`. Fill every section with specif
 
 Before closing the session, log it:
 ```bash
-bash ai-core/hooks/log-run.sh "aisdlc-architect" "<one-line summary of the decision made>" "success|error|partial"
+bash aisdlc/hooks/log-run.sh "aisdlc-architect" "<one-line summary of the decision made>" "success|error|partial"
 ```
 
-Example: `bash ai-core/hooks/log-run.sh "aisdlc-architect" "Chose JWT over sessions for stateless auth" "success"`
+Example: `bash aisdlc/hooks/log-run.sh "aisdlc-architect" "Chose JWT over sessions for stateless auth" "success"`
 
 If the outcome was `error` or `partial`, also capture the failure so it feeds `anti-patterns.md`:
 ```bash
-bash ai-core/hooks/summarize-failure.sh "aisdlc-architect" "<one-line summary>" "<what went wrong>"
+bash aisdlc/hooks/summarize-failure.sh "aisdlc-architect" "<one-line summary>" "<what went wrong>"
 ```
 
 ---

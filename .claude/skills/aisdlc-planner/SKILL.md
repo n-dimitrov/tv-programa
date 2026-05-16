@@ -12,14 +12,15 @@ Break a feature or change into a concrete, sequenced work plan before any builde
 ## Step 1: Load context
 
 Read:
-1. **`CLAUDE.md`** — constraints, stack, current phase
-2. **`ai-core/knowledge/patterns/coding-patterns.md`** — understand what patterns exist and what's established
-3. **`ai-core/memory/patterns.md`** — emergent patterns from recent sessions that may inform task scoping
-4. **`ai-core/knowledge/architecture/adr/README.md`** — scan for ADRs relevant to the feature area
-5. **`ai-core/knowledge/components/README.md`** — understand the current component landscape
+1. **`aisdlc/INDEX.md`** — constraints, stack, current phase
+2. **`CLAUDE.md`** (if it exists) — supplementary user-owned context
+3. **`aisdlc/knowledge/patterns/coding-patterns.md`** — understand what patterns exist and what's established
+3. **`aisdlc/memory/patterns.md`** — emergent patterns from recent sessions that may inform task scoping
+4. **`aisdlc/knowledge/architecture/adr/README.md`** — scan for ADRs relevant to the feature area
+5. **`aisdlc/knowledge/components/README.md`** — understand the current component landscape
 
 **If files are missing, handle gracefully:**
-- **`CLAUDE.md` missing** → Stop. Tell the user to run `/aisdlc-onboard` first — planning without project context leads to plans that don't fit the codebase.
+- **`aisdlc/INDEX.md` missing** → Stop. Tell the user to run `/aisdlc-onboard` first — planning without project context leads to plans that don't fit the codebase.
 - **Pattern docs missing or empty** → Warn but proceed: "No coding patterns documented. Tasks will be planned but builders won't have pattern guidance — consider running `/aisdlc-onboard` first."
 - **Component docs or ADR index missing** → Proceed. Note which context was unavailable so the plan reflects uncertainty.
 
@@ -48,7 +49,7 @@ Look for signals:
 - The feature crosses a system boundary that has no ADR governing it (→ run `/aisdlc-architect` first)
 - The feature changes how a core cross-cutting concern works (auth, logging, error handling)
 
-Also check `ai-core/memory/learnings.md` — if a relevant learning is tagged `#ready-for-promotion`, it may provide provisional guidance even without a formal ADR. Note it as provisional in the plan.
+Also check `aisdlc/memory/learnings.md` — if a relevant learning is tagged `#ready-for-promotion`, it may provide provisional guidance even without a formal ADR. Note it as provisional in the plan.
 
 If any signal fires without a resolution: **stop and tell the user** which decision needs to be made via `/aisdlc-architect` before planning can proceed.
 
@@ -121,9 +122,9 @@ Format:
 - Track B: Task 4 (can start immediately, no dependencies)
 ```
 
-Once the user confirms the plan, **persist it** to `ai-core/plans/<feature-slug>.md` using the feature name as a kebab-case filename (e.g., `ai-core/plans/user-profile-page.md`). Add a `Status: active` header and the current date.
+Once the user confirms the plan, **persist it** to `aisdlc/plans/<feature-slug>.md` using the feature name as a kebab-case filename (e.g., `aisdlc/plans/user-profile-page.md`). Add a `Status: active` header and the current date.
 
-If `ai-core/plans/` doesn't exist, create it.
+If `aisdlc/plans/` doesn't exist, create it.
 
 This lets builder skills in subsequent sessions load the plan and understand their assigned task in context. When all tasks are complete, update the status to `Status: completed`.
 
@@ -133,12 +134,12 @@ This lets builder skills in subsequent sessions load the plan and understand the
 
 Before closing the session, log it:
 ```bash
-bash ai-core/hooks/log-run.sh "aisdlc-planner" "<one-line summary of the feature planned>" "success|error|partial"
+bash aisdlc/hooks/log-run.sh "aisdlc-planner" "<one-line summary of the feature planned>" "success|error|partial"
 ```
 
-Example: `bash ai-core/hooks/log-run.sh "aisdlc-planner" "Broke down user auth feature into 4 tasks across backend and frontend" "success"`
+Example: `bash aisdlc/hooks/log-run.sh "aisdlc-planner" "Broke down user auth feature into 4 tasks across backend and frontend" "success"`
 
 If the outcome was `error` or `partial`, also capture the failure so it feeds `anti-patterns.md`:
 ```bash
-bash ai-core/hooks/summarize-failure.sh "aisdlc-planner" "<one-line summary>" "<what went wrong>"
+bash aisdlc/hooks/summarize-failure.sh "aisdlc-planner" "<one-line summary>" "<what went wrong>"
 ```

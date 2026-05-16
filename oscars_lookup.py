@@ -187,6 +187,74 @@ class OscarLookup:
 
         return None
 
+    def find_movie_candidates(self, title: str, description: Optional[str] = None) -> Tuple[Optional[str], List[Dict]]:
+        """Find movie match or return candidate list for ambiguous titles.
+
+        Returns:
+            (movie_id, []) for unique match,
+            (None, [candidates]) for ambiguous match,
+            (None, []) for no match.
+        """
+        base_title = _strip_episode_suffix(title)
+        key = _normalize_title(base_title)
+        if not key:
+            return None, []
+
+        ids = self._title_index.get(key)
+        if not ids:
+            return None, []
+        if len(ids) == 1:
+            return next(iter(ids)), []
+
+        candidates = []
+        for mid in ids:
+            movie = self._movies.get(mid, {})
+            candidates.append({
+                "movie_id": mid,
+                "title_en": movie.get("title"),
+                "title_bg": movie.get("title_bg"),
+                "year": movie.get("year"),
+                "overview": movie.get("overview", ""),
+            })
+        return None, candidates
+
+    def annotate_program_with_movie_id(self, program: Dict, movie_id: str) -> Optional[Dict]:
+        """Annotate a program with Oscar data using a known movie_id (from AI disambiguation)."""
+        info = self._oscar_info.get(movie_id)
+        if not info:
+            return None
+
+        movie = self._movies.get(movie_id, {})
+        tmdb_id = movie.get("tmdb_id")
+        oscar_payload = {
+            "winner": len(info["winner"]),
+            "nominee": len(info["nominee"]),
+            "winner_categories": sorted(info["winner"]),
+            "nominee_categories": sorted(info["nominee"]),
+            "title_en": movie.get("title"),
+            "year": movie.get("year"),
+            "poster_path": movie.get("poster_path"),
+            "overview": movie.get("overview"),
+            "tmdb_id": tmdb_id,
+        }
+        watch_info = None
+        if tmdb_id:
+            watch_info = self._fetch_watch_info(str(tmdb_id))
+        if watch_info:
+            oscar_payload["watch"] = watch_info
+        program["oscar"] = oscar_payload
+
+        return {
+            "program_title": program.get("title", ""),
+            "matched_title_bg": movie.get("title_bg"),
+            "matched_title_en": movie.get("title"),
+            "year": movie.get("year"),
+            "winner": len(info["winner"]),
+            "nominee": len(info["nominee"]),
+            "program_description": program.get("description") or program.get("full") or "",
+            "movie_overview": movie.get("overview"),
+        }
+
     def annotate_program(self, program: Dict, channel_id: str = "", date: str = "", time: str = "") -> Optional[Dict]:
         """Add Oscar winner/nominee info to a program dict if matched.
 

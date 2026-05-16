@@ -107,7 +107,7 @@ Key questions for monorepos:
 
 ## Component Doc Format
 
-For each major component identified, generate `ai-core/knowledge/components/[name].md` with this structure:
+For each major component identified, generate `aisdlc/knowledge/components/[name].md` with this structure:
 
 ```markdown
 # [Component Name]
