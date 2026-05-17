@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './OscarManager.css';
 import OscarArchiveDialog from './OscarArchiveDialog';
+import oscarLogo from '../assets/oscar-logo.png';
 
 interface Broadcast {
   channel_id: string;
@@ -528,7 +529,7 @@ const OscarManager: React.FC = () => {
   return (
     <div className="oscar-manager">
       <div className="oscar-header">
-        <h2>🏆 Oscar Movies on TV</h2>
+        <h2><img src={oscarLogo} alt="Oscar" className="oscar-heading-icon" /> Oscar Movies on TV</h2>
         {isAdmin && (
           <div className="admin-badge">
             🔐 Admin Mode
@@ -617,16 +618,16 @@ const OscarManager: React.FC = () => {
                 </div>
 
                 <div className="oscar-badges">
-                  {program.winner > 0 && (
-                    <span className="badge winner">
-                      🏆 {program.winner} Win{program.winner !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                  {program.nominee > 0 && (
-                    <span className="badge nominee">
-                      ⭐ {program.nominee} Nomination{program.nominee !== 1 ? 's' : ''}
-                    </span>
-                  )}
+                  <span className={`badge-unified ${program.winner > 0 ? 'has-wins' : ''}`}>
+                    <img src={oscarLogo} alt="" aria-hidden="true" className="badge-icon" />
+                    {program.winner > 0 ? (
+                      <>
+                        <span className="badge-wins">{program.winner}</span>
+                        <span className="badge-sep">·</span>
+                      </>
+                    ) : null}
+                    <span className="badge-noms">{program.nominee}</span>
+                  </span>
                 </div>
 
                 <div className="oscar-broadcasts">
@@ -773,6 +774,28 @@ const OscarManager: React.FC = () => {
                     {modalProgram.year && ` (${modalProgram.year})`}
                   </div>
                 )}
+                <div className="oscar-modal-badge">
+                  <span className={`badge-modal ${modalProgram.winner > 0 ? 'badge-modal-winner' : 'badge-modal-nominee'}`}>
+                    {modalProgram.winner > 0 && (
+                      <img src={oscarLogo} alt="" aria-hidden="true" className="badge-icon" />
+                    )}
+                    {modalProgram.winner > 0 ? (
+                      <>
+                        <span className="badge-modal-label">
+                          {modalProgram.winner > 1 ? `${modalProgram.winner}x ` : ''}Oscar Winner
+                        </span>
+                        <span className="badge-sep">·</span>
+                        <span className="badge-modal-sub">
+                          {modalProgram.nominee} Nomination{modalProgram.nominee !== 1 ? 's' : ''}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="badge-modal-label">
+                        {modalProgram.nominee > 1 ? `${modalProgram.nominee}x ` : ''}Oscar Nominated
+                      </span>
+                    )}
+                  </span>
+                </div>
                 {modalProgram.overview && (
                   <p className="oscar-overview">{modalProgram.overview}</p>
                 )}

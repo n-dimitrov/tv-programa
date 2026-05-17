@@ -91,6 +91,12 @@
   scroll-snap-align: start;
 }
 
+.oscar-poster-card:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
 .oscar-poster-card img {
   width: var(--poster-width);
   height: 144px;
@@ -105,7 +111,7 @@
 }
 
 .oscar-poster-card.active img {
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18), 0 0 0 var(--active-ring) #f6e05e;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18), 0 0 0 var(--active-ring) #f59e0b;
   transform: translateY(-6px);
 }
 
@@ -166,8 +172,8 @@
 
 .search-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
 }
 
 .search-input::placeholder {
@@ -204,6 +210,11 @@
   color: #333;
 }
 
+.filter-header:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: -2px;
+}
+
 .filter-header:hover {
   background: #f5f5f5;
 }
@@ -218,7 +229,7 @@
 .expand-icon {
   display: inline-block;
   transition: transform 0.3s ease;
-  color: #667eea;
+  color: #06b6d4;
   font-size: 12px;
 }
 
@@ -268,15 +279,20 @@
   color: #666;
 }
 
+.date-tab:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
+}
+
 .date-tab:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #06b6d4;
+  color: #06b6d4;
 }
 
 .date-tab.active {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
+  background: #06b6d4;
+  color: #0f172a;
+  border-color: #06b6d4;
 }
 
 .date-tab.today {
@@ -319,7 +335,7 @@
 
 .loading {
   font-size: 16px;
-  color: #667eea;
+  color: #06b6d4;
 }
 
 .error-message {
@@ -395,11 +411,11 @@
 
 .channel-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: #667eea;
+  border-color: #06b6d4;
 }
 
 .channel-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1e293b;
   color: white;
   padding: 15px;
   display: flex;
@@ -410,7 +426,7 @@
 }
 
 .channel-header:hover {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  background: #334155;
 }
 
 .channel-header-left {
@@ -436,6 +452,11 @@
   min-width: 40px;
 }
 
+.channel-expand-btn:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
+}
+
 .channel-expand-btn:hover {
   background: rgba(255, 255, 255, 0.25);
   transform: scale(1.05);
@@ -454,18 +475,26 @@
 }
 
 .channel-icon {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 2px;
-  border-radius: 4px;
+  background: #ffffff;
+  padding: 4px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.channel-icon:hover {
+  transform: scale(1.05);
 }
 
 .channel-header h3 {
   margin: 0;
   flex: 1;
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .program-count {
@@ -484,10 +513,10 @@
 }
 
 .date-carousel-btn {
-  border: 1px solid #d6def7;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
   background: #f5f5f5;
-  color: #667eea;
+  color: #06b6d4;
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 700;
@@ -499,15 +528,15 @@
 }
 
 .date-carousel-btn:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #06b6d4;
+  color: #06b6d4;
   background: #ffffff;
 }
 
 .date-carousel-btn.active {
-  background: #667eea;
-  border-color: #667eea;
-  color: #ffffff;
+  background: #06b6d4;
+  border-color: #06b6d4;
+  color: #0f172a;
 }
 
 .date-carousel-header {
@@ -517,7 +546,7 @@
   overflow-x: auto;
   padding: 10px 12px;
   background: #f5f5f5;
-  border-bottom: 2px solid #667eea;
+  border-bottom: 2px solid #06b6d4;
 }
 
 .date-carousel-header::-webkit-scrollbar {
@@ -546,15 +575,16 @@
 }
 
 .program-time {
-  font-weight: bold;
-  color: #667eea;
+  font-weight: 700;
+  color: #06b6d4;
   min-width: 50px;
-  font-size: 14px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
 }
 
 .program-time-oscar {
-  background: #f6e05e;
-  color: #744210;
+  background: #f59e0b;
+  color: #78350f;
   padding: 2px 6px;
   border-radius: 6px;
   font-weight: 700;
@@ -574,28 +604,91 @@
 }
 
 .program-title {
-  font-weight: 500;
-  color: #333;
-  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 15px;
   margin-bottom: 4px;
+  line-height: 1.5;
 }
 
 .program-subtitle {
   margin-top: -2px;
-  font-size: 12px;
-  color: #777;
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
 }
 
 .oscar-badge {
   margin-left: 8px;
   padding: 2px 6px;
-  border-radius: 999px;
-  font-size: 10px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   border: none;
   cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.oscar-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.oscar-badge:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
+}
+
+.oscar-badge-winner {
+  background: transparent;
+  color: #1e293b;
+}
+
+.oscar-badge-nominee {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.oscar-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  vertical-align: -2px;
+  margin-right: 2px;
+}
+
+.oscar-wins {
+  color: #b45309;
+  font-weight: 800;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.oscar-sep {
+  color: #cbd5e1;
+  font-size: 14px;
+  margin: 0 1px;
+}
+
+.oscar-noms {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.oscar-noms-only {
+  color: #64748b;
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .oscar-badge-star {
@@ -607,20 +700,105 @@
   padding: 0;
 }
 
-.oscar-badge-winner {
-  background: #f6e05e;
-  color: #744210;
+.oscar-badge-star.oscar-badge-winner {
+  background: #fef3c7;
+  color: #b45309;
+  border-radius: 999px;
 }
 
-.oscar-badge-nominee {
-  background: #e2e8f0;
-  color: #1f2937;
+.oscar-badge-star.oscar-badge-nominee {
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 999px;
+}
+
+.oscar-modal-badge {
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.badge-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.badge-modal-winner {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+}
+
+.badge-modal-nominee {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-modal-label {
+  color: #78350f;
+  font-weight: 800;
+}
+
+.badge-modal-nominee .badge-modal-label {
+  color: #334155;
+}
+
+.badge-modal-sub {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.badge-unified {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #f1f5f9;
+  line-height: 1;
+}
+
+.badge-unified.has-wins {
+  background: transparent;
+}
+
+.badge-icon-lg {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.badge-wins {
+  color: #b45309;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.badge-sep {
+  color: #cbd5e1;
+  font-size: 18px;
+  margin: 0 1px;
+}
+
+.badge-noms {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .program-description {
-  font-size: 12px;
-  color: #666;
-  line-height: 1.4;
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.6;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -644,11 +822,21 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.oscar-pill:hover {
+  transform: scale(1.02);
+}
+
+.oscar-pill:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
 }
 
 .oscar-pill.active {
-  background: #f6e05e;
-  color: #744210;
+  background: #f59e0b;
+  color: #78350f;
 }
 
 .oscar-pill.inactive {
@@ -661,7 +849,7 @@
 }
 
 .oscar-pill.active .oscar-pill-count {
-  color: #744210;
+  color: #78350f;
 }
 
 .oscar-switch {
@@ -684,10 +872,16 @@
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .oscar-switch-arrow:hover {
   background: rgba(15, 23, 42, 0.06);
+}
+
+.oscar-switch-arrow:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
 }
 
 .oscar-modal-overlay {
@@ -874,8 +1068,8 @@
 }
 
 .oscar-winner {
-  background: #fde68a;
-  color: #92400e;
+  background: #fcd34d;
+  color: #78350f;
 }
 
 .oscar-nominee {
@@ -920,9 +1114,9 @@
   top: 0;
   background: #f5f5f5;
   padding: 10px 15px;
-  border-bottom: 2px solid #667eea;
+  border-bottom: 2px solid #06b6d4;
   font-weight: bold;
-  color: #667eea;
+  color: #06b6d4;
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
