@@ -238,17 +238,36 @@ class ActiveChannelFetcher:
         }
 
         try:
-            print(f"Calling AI API: {api_url}")
+            print(f"\n{'='*60}")
+            print(f"DEBUG: AI API Call")
+            print(f"{'='*60}")
+            print(f"URL: {api_url}")
+            print(f"Model: {ai_model}")
+            print(f"Prompt length: {len(user_prompt)} chars")
+            print(f"Max tokens: {payload['max_tokens']}")
+            print(f"{'='*60}\n")
+
             response = requests.post(api_url, json=payload, timeout=60)
+
+            print(f"Response status: {response.status_code}")
+            print(f"Response headers: {dict(response.headers)}")
+
             response.raise_for_status()
 
             data = response.json()
+
+            print(f"\nDEBUG: Raw API response keys: {list(data.keys())}")
+            print(f"DEBUG: Full raw response:\n{json.dumps(data, ensure_ascii=False, indent=2)}\n")
+
             # Extract the AI response text (adjust based on actual API response structure)
             ai_text = data.get("response") or data.get("content") or data.get("text")
 
             if not ai_text:
                 print(f"ERROR: No response text in AI API response: {data}")
                 return None
+
+            print(f"DEBUG: Extracted AI text length: {len(ai_text)} chars")
+            print(f"DEBUG: AI text preview (first 500 chars):\n{ai_text[:500]}\n")
 
             return ai_text
 
@@ -257,9 +276,13 @@ class ActiveChannelFetcher:
             return None
         except requests.exceptions.RequestException as e:
             print(f"ERROR: AI API request failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Response status: {e.response.status_code}")
+                print(f"Response body: {e.response.text}")
             return None
         except json.JSONDecodeError as e:
             print(f"ERROR: Failed to parse AI API response: {e}")
+            print(f"Raw response text: {response.text}")
             return None
 
     def _resolve_ambiguous_matches(self, ambiguous_items: List[Dict], date: str) -> List[Dict]:
