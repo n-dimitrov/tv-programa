@@ -12,7 +12,17 @@
 .oscar-header h2 {
   margin: 0 0 20px 0;
   font-size: 2.5em;
-  color: #333;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.oscar-heading-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
 }
 
 .admin-badge {
@@ -47,7 +57,7 @@
 
 .stat-label {
   font-size: 0.9em;
-  color: #666;
+  color: #475569;
   margin-top: 5px;
 }
 
@@ -74,11 +84,16 @@
   border-color: #9ca3af;
 }
 
+.oscar-list-link:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
+}
+
 .oscar-scanner-link {
   padding: 10px 20px;
-  border: 1px solid #93c5fd;
-  background: #eff6ff;
-  color: #1e40af;
+  border: 1px solid #67e8f9;
+  background: #ecfeff;
+  color: #155e75;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 700;
@@ -86,8 +101,13 @@
 }
 
 .oscar-scanner-link:hover {
-  background: #dbeafe;
-  border-color: #60a5fa;
+  background: #cffafe;
+  border-color: #06b6d4;
+}
+
+.oscar-scanner-link:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
 }
 
 .back-link {
@@ -273,8 +293,8 @@
 }
 
 .oscar-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-color: #d4af37;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-color: #06b6d4;
 }
 
 .oscar-poster-small {
@@ -316,12 +336,12 @@
 .oscar-title-row h3 {
   margin: 0;
   font-size: 1.3em;
-  color: #333;
-  font-weight: 600;
+  color: #1e293b;
+  font-weight: 700;
 }
 
 .title-en {
-  color: #888;
+  color: #64748b;
   font-size: 0.95em;
   display: block;
 }
@@ -332,22 +352,87 @@
   flex-wrap: wrap;
 }
 
-.badge {
-  padding: 4px 12px;
-  border-radius: 14px;
-  font-size: 0.85em;
-  font-weight: 600;
+.badge-unified {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
   white-space: nowrap;
+  background: #f1f5f9;
+  line-height: 1;
 }
 
-.badge.winner {
-  background: #ffd700;
-  color: #333;
+.badge-unified.has-wins {
+  background: transparent;
 }
 
-.badge.nominee {
-  background: #e8f4fd;
-  color: #0066cc;
+.badge-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.badge-wins {
+  color: #b45309;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.badge-sep {
+  color: #cbd5e1;
+  font-size: 18px;
+  margin: 0 1px;
+}
+
+.badge-noms {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.oscar-modal-badge {
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.badge-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.badge-modal-winner {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+}
+
+.badge-modal-nominee {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-modal-label {
+  color: #78350f;
+  font-weight: 800;
+}
+
+.badge-modal-nominee .badge-modal-label {
+  color: #334155;
+}
+
+.badge-modal-sub {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .oscar-broadcasts {
@@ -547,6 +632,11 @@
   background: #111827;
 }
 
+.oscar-modal-close:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
+}
+
 .oscar-modal-content {
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -593,7 +683,7 @@
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #1d4ed8;
+  color: #0e7490;
 }
 
 .oscar-watch-toggle {
@@ -602,17 +692,23 @@
   align-items: center;
   justify-content: space-between;
   border: none;
-  background: #e0e7ff;
-  color: #1e3a8a;
+  background: #ecfeff;
+  color: #155e75;
   padding: 8px 10px;
   border-radius: 10px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .oscar-watch-toggle:hover {
-  background: #c7d2fe;
+  background: #cffafe;
+}
+
+.oscar-watch-toggle:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
 }
 
 .oscar-watch-toggle-icon {
@@ -693,8 +789,8 @@
 }
 
 .oscar-winner {
-  background: #fde68a;
-  color: #92400e;
+  background: #fcd34d;
+  color: #78350f;
 }
 
 .oscar-nominee {
@@ -873,7 +969,7 @@
 }
 
 .oscar-list-switch input:checked + .oscar-list-switch-track {
-  background: #2563eb;
+  background: #06b6d4;
 }
 
 .oscar-list-switch input:checked + .oscar-list-switch-track .oscar-list-switch-thumb {
@@ -885,7 +981,7 @@
 }
 
 .oscar-list-switch:focus-within {
-  outline: 2px solid #93c5fd;
+  outline: 2px solid #06b6d4;
   outline-offset: 1px;
 }
 
@@ -917,8 +1013,8 @@
 
 .oscar-list-search:focus {
   outline: none;
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.3);
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
 }
 
 .oscar-list-search-clear {
@@ -1088,19 +1184,26 @@
   padding: 0 18px;
   border: none;
   border-radius: 8px;
-  background: #1d4ed8;
-  color: #ffffff;
+  background: #06b6d4;
+  color: #0f172a;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .oscar-scan-button:hover:not(:disabled) {
-  background: #1e40af;
+  background: #0891b2;
 }
 
 .oscar-scan-button:disabled {
   background: #94a3b8;
+  color: #e2e8f0;
   cursor: not-allowed;
+}
+
+.oscar-scan-button:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
 }
 
 .oscar-clear-button {
@@ -1172,7 +1275,7 @@
 
 .oscar-scanner-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  background: linear-gradient(90deg, #22d3ee, #06b6d4);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
@@ -1430,6 +1533,11 @@
   border-color: #b8960c;
 }
 
+.oscar-archive-link:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
+}
+
 .oscar-archive-dialog {
   background: #ffffff;
   border-radius: 16px;
@@ -1476,8 +1584,8 @@
 
 .oscar-archive-year-selector:focus {
   outline: none;
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.3);
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
 }
 
 .oscar-archive-month-grid {

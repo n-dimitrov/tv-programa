@@ -1,3 +1,14 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 .App {
   min-height: 100vh;
   display: flex;
@@ -15,7 +26,7 @@
 }
 
 .app-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1e293b;
   color: white;
   padding: 20px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -23,7 +34,9 @@
 
 .app-header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .app-header .header-link {
@@ -44,8 +57,9 @@
 
 .app-header-subtitle {
   margin: 0;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.5;
 }
 
 .app-main {
@@ -57,12 +71,13 @@
 }
 
 .app-footer {
-  background: #333;
-  color: #999;
+  background: #1e293b;
+  color: #94a3b8;
   text-align: center;
-  padding: 20px;
-  font-size: 12px;
+  padding: 24px;
+  font-size: 14px;
   margin-top: auto;
+  line-height: 1.6;
 }
 
 .app-footer p {

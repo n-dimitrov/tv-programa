@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import './ProgramsView.css';
 import { API_URL } from '../config';
+import oscarLogo from '../assets/oscar-logo.png';
 
 interface Program {
   time: string;
@@ -582,7 +583,15 @@ function ProgramsView() {
                     activePoster.oscar.winner ? 'oscar-badge-winner' : 'oscar-badge-nominee'
                   }`}
                 >
-                  Oscar {activePoster.oscar.winner}W / {activePoster.oscar.nominee}N
+                  {activePoster.oscar.winner > 0 ? (
+                    <>
+                      <span className="oscar-wins"><img src={oscarLogo} alt="" aria-hidden="true" className="oscar-icon" />{activePoster.oscar.winner}</span>
+                      <span className="oscar-sep">·</span>
+                      <span className="oscar-noms">{activePoster.oscar.nominee}</span>
+                    </>
+                  ) : (
+                    <span className="oscar-noms-only">○{activePoster.oscar.nominee}</span>
+                  )}
                 </span>
                 {(activePoster.oscar.winner_categories.includes('Best Picture') ||
                   activePoster.oscar.nominee_categories.includes('Best Picture')) && (
@@ -802,9 +811,17 @@ function ProgramsView() {
                                       program.oscar.winner ? 'oscar-badge-winner' : 'oscar-badge-nominee'
                                     }`}
                                     onClick={() => setOscarModalProgram(program)}
-                                    aria-label={`View Oscar details for ${program.title}`}
+                                    aria-label={`${program.oscar.winner} Oscar wins, ${program.oscar.nominee} nominations for ${program.title}`}
                                   >
-                                    Oscar {program.oscar.winner}W / {program.oscar.nominee}N
+                                    {program.oscar.winner > 0 ? (
+                                      <>
+                                        <span className="oscar-wins"><img src={oscarLogo} alt="" aria-hidden="true" className="oscar-icon" />{program.oscar.winner}</span>
+                                        <span className="oscar-sep">·</span>
+                                        <span className="oscar-noms">{program.oscar.nominee}</span>
+                                      </>
+                                    ) : (
+                                      <span className="oscar-noms-only">○{program.oscar.nominee}</span>
+                                    )}
                                   </button>
                                   {(program.oscar.winner_categories.includes('Best Picture') ||
                                     program.oscar.nominee_categories.includes('Best Picture')) && (
@@ -882,6 +899,28 @@ function ProgramsView() {
                     {oscarModalProgram.oscar.year && ` (${oscarModalProgram.oscar.year})`}
                   </div>
                 )}
+                <div className="oscar-modal-badge">
+                  <span className={`badge-modal ${oscarModalProgram.oscar.winner > 0 ? 'badge-modal-winner' : 'badge-modal-nominee'}`}>
+                    {oscarModalProgram.oscar.winner > 0 && (
+                      <img src={oscarLogo} alt="" aria-hidden="true" className="oscar-icon badge-icon-lg" />
+                    )}
+                    {oscarModalProgram.oscar.winner > 0 ? (
+                      <>
+                        <span className="badge-modal-label">
+                          {oscarModalProgram.oscar.winner > 1 ? `${oscarModalProgram.oscar.winner}x ` : ''}Oscar Winner
+                        </span>
+                        <span className="badge-sep">·</span>
+                        <span className="badge-modal-sub">
+                          {oscarModalProgram.oscar.nominee} Nomination{oscarModalProgram.oscar.nominee !== 1 ? 's' : ''}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="badge-modal-label">
+                        {oscarModalProgram.oscar.nominee > 1 ? `${oscarModalProgram.oscar.nominee}x ` : ''}Oscar Nominated
+                      </span>
+                    )}
+                  </span>
+                </div>
                 {oscarModalProgram.oscar.overview && (
                   <p className="oscar-overview">{oscarModalProgram.oscar.overview}</p>
                 )}
