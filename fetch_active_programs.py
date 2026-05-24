@@ -592,9 +592,23 @@ class ActiveChannelFetcher:
                 added_count += 1
                 print(f"  ✓ Excluded: {tv_title} ({match.get('channel', 'Unknown')} @ {tv_time})")
 
-        if added_count > 0:
+        # Prune broadcast entries older than 8 days
+        cutoff = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=8)).strftime("%Y-%m-%d")
+        before = len(data["excluded"])
+        data["excluded"] = [
+            e for e in data["excluded"]
+            if e.get("scope") != "broadcast" or e.get("date", "") >= cutoff
+        ]
+        pruned = before - len(data["excluded"])
+
+        if added_count > 0 or pruned > 0:
             self.storage.write_json(blacklist_file, data)
-            print(f"\n✓ Added {added_count} false positives to blacklist")
+            parts = []
+            if added_count > 0:
+                parts.append(f"added {added_count} false positives")
+            if pruned > 0:
+                parts.append(f"pruned {pruned} stale entries")
+            print(f"\n✓ Blacklist: {', '.join(parts)}")
         else:
             print("  All false positives already in blacklist")
 
