@@ -17,6 +17,10 @@ EPISODE_SUFFIX_RE = re.compile(
     r"[, ]*(сез\.|сезон|сез|еп\.|епизод|еп)\s*\d+.*$",
     re.IGNORECASE,
 )
+EPISODE_PREFIX_RE = re.compile(
+    r"^\s*сез\.\s*\d+\s*,\s*еп\.\s*\d+",
+    re.IGNORECASE,
+)
 
 
 def _normalize_title(text: str) -> str:
@@ -195,6 +199,9 @@ class OscarLookup:
             (None, [candidates]) for ambiguous match,
             (None, []) for no match.
         """
+        if description and EPISODE_PREFIX_RE.search(description):
+            return None, []
+
         base_title = _strip_episode_suffix(title)
         key = _normalize_title(base_title)
         if not key:
@@ -266,6 +273,9 @@ class OscarLookup:
 
         title = program.get("title") or ""
         description = program.get("description") or program.get("full") or ""
+
+        if EPISODE_PREFIX_RE.search(description):
+            return None
 
         # Use program's time if not provided
         if not time:

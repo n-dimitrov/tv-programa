@@ -494,7 +494,9 @@ class ActiveChannelFetcher:
             response = validation.get("response", "")
             red_flags = validation.get("red_flags", [])
 
-            if not matched:
+            has_year_mismatch = any("year mismatch" in rf.lower() for rf in red_flags)
+
+            if not matched or (confidence == "medium" and has_year_mismatch):
                 false_positives.append({
                     "match": match,
                     "validation": validation
