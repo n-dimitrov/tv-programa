@@ -84,6 +84,10 @@ function ProgramsView() {
   const [isFocusActive, setIsFocusActive] = useState<boolean>(() => localStorage.getItem('focus-active') === 'true');
   const [isFocusEditing, setIsFocusEditing] = useState<boolean>(false);
   const [focusEditValue, setFocusEditValue] = useState<string>('');
+  const [focusHistory, setFocusHistory] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('focus-history') || '[]'); }
+    catch { return []; }
+  });
   const [oscarFilterIndex, setOscarFilterIndex] = useState<number>(0);
   const [isOscarFilterActive, setIsOscarFilterActive] = useState<boolean>(false);
   const [oscarModalProgram, setOscarModalProgram] = useState<Program | null>(null);
@@ -197,17 +201,30 @@ function ProgramsView() {
     setSearchTerm(next ? focusTerm : '');
   };
 
+  const addToFocusHistory = (term: string) => {
+    const updated = [term, ...focusHistory.filter(h => h !== term)].slice(0, 5);
+    setFocusHistory(updated);
+    localStorage.setItem('focus-history', JSON.stringify(updated));
+  };
+
   const handleFocusSave = () => {
     const trimmed = focusEditValue.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      handleFocusClear();
+      return;
+    }
     setFocusTerm(trimmed);
     setIsFocusActive(true);
     setSearchTerm(trimmed);
     setIsFocusEditing(false);
+    addToFocusHistory(trimmed);
   };
 
   const handleFocusEdit = () => {
     setFocusEditValue(focusTerm);
+    if (focusTerm && !focusHistory.includes(focusTerm)) {
+      addToFocusHistory(focusTerm);
+    }
     setIsFocusEditing(true);
   };
 
@@ -611,6 +628,7 @@ function ProgramsView() {
                     setSearchTerm(poster.title);
                     setActivePosterIndex(index);
                   }
+                  setIsFocusActive(false);
                   setLastInteractionTs(Date.now());
                 }}
                 aria-label={`Search for ${poster.title}`}
@@ -673,18 +691,33 @@ function ProgramsView() {
         />
         {isFocusEditing ? (
           <div className="focus-edit">
-            <input
-              type="text"
-              className="focus-edit-input"
-              placeholder="напр. FIFA, Евро..."
-              value={focusEditValue}
-              onChange={(e) => setFocusEditValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleFocusSave();
-                if (e.key === 'Escape') handleFocusCancel();
-              }}
-              autoFocus
-            />
+            <div className="focus-edit-field">
+              <input
+                type="text"
+                className="focus-edit-input"
+                placeholder="напр. FIFA, Евро..."
+                value={focusEditValue}
+                onChange={(e) => setFocusEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleFocusSave();
+                  if (e.key === 'Escape') handleFocusCancel();
+                }}
+                autoFocus
+              />
+              {focusHistory.length > 0 && (
+                <div className="focus-history">
+                  {focusHistory.map(term => (
+                    <button
+                      key={term}
+                      className="focus-history-item"
+                      onClick={() => { setFocusEditValue(term); }}
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button className="focus-edit-btn save" onClick={handleFocusSave} title="Запази">&#10003;</button>
             <button className="focus-edit-btn cancel" onClick={handleFocusCancel} title="Откажи">&times;</button>
           </div>

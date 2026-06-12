@@ -322,6 +322,46 @@
   color: #334155;
 }
 
+.focus-edit-field {
+  position: relative;
+}
+
+.focus-history {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+  z-index: 10;
+  overflow: hidden;
+}
+
+.focus-history-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 14px;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.focus-history-item:hover {
+  background: #f0f9ff;
+  color: #0e7490;
+}
+
+.focus-history-item + .focus-history-item {
+  border-top: 1px solid #f1f5f9;
+}
+
 @media (max-width: 480px) {
   .search-container {
     flex-wrap: wrap;
