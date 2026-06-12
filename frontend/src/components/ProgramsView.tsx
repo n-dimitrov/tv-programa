@@ -73,8 +73,17 @@ function ProgramsView() {
   const [logoBaseUrl, setLogoBaseUrl] = useState<string>('');
   const [hiddenChannels, setHiddenChannels] = useState<Set<string>>(new Set());
   const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>(() => {
+    if (localStorage.getItem('focus-active') === 'true') {
+      return localStorage.getItem('focus-term') || '';
+    }
+    return '';
+  });
   const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set());
+  const [focusTerm, setFocusTerm] = useState<string>(() => localStorage.getItem('focus-term') || '');
+  const [isFocusActive, setIsFocusActive] = useState<boolean>(() => localStorage.getItem('focus-active') === 'true');
+  const [isFocusEditing, setIsFocusEditing] = useState<boolean>(false);
+  const [focusEditValue, setFocusEditValue] = useState<string>('');
   const [oscarFilterIndex, setOscarFilterIndex] = useState<number>(0);
   const [isOscarFilterActive, setIsOscarFilterActive] = useState<boolean>(false);
   const [oscarModalProgram, setOscarModalProgram] = useState<Program | null>(null);
@@ -167,6 +176,50 @@ function ProgramsView() {
       const minutesB = timeB[0] * 60 + timeB[1];
       return minutesB - minutesA; // Descending order
     });
+  };
+
+  useEffect(() => {
+    localStorage.setItem('focus-term', focusTerm);
+  }, [focusTerm]);
+
+  useEffect(() => {
+    localStorage.setItem('focus-active', String(isFocusActive));
+  }, [isFocusActive]);
+
+  const handleFocusToggle = () => {
+    if (!focusTerm) {
+      setFocusEditValue('');
+      setIsFocusEditing(true);
+      return;
+    }
+    const next = !isFocusActive;
+    setIsFocusActive(next);
+    setSearchTerm(next ? focusTerm : '');
+  };
+
+  const handleFocusSave = () => {
+    const trimmed = focusEditValue.trim();
+    if (!trimmed) return;
+    setFocusTerm(trimmed);
+    setIsFocusActive(true);
+    setSearchTerm(trimmed);
+    setIsFocusEditing(false);
+  };
+
+  const handleFocusEdit = () => {
+    setFocusEditValue(focusTerm);
+    setIsFocusEditing(true);
+  };
+
+  const handleFocusCancel = () => {
+    setIsFocusEditing(false);
+  };
+
+  const handleFocusClear = () => {
+    setFocusTerm('');
+    setIsFocusActive(false);
+    setSearchTerm('');
+    setIsFocusEditing(false);
   };
 
   const toggleDateFilter = (date: string) => {
@@ -618,6 +671,37 @@ function ProgramsView() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+        {isFocusEditing ? (
+          <div className="focus-edit">
+            <input
+              type="text"
+              className="focus-edit-input"
+              placeholder="напр. FIFA, Евро..."
+              value={focusEditValue}
+              onChange={(e) => setFocusEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleFocusSave();
+                if (e.key === 'Escape') handleFocusCancel();
+              }}
+              autoFocus
+            />
+            <button className="focus-edit-btn save" onClick={handleFocusSave} title="Запази">&#10003;</button>
+            <button className="focus-edit-btn cancel" onClick={handleFocusCancel} title="Откажи">&times;</button>
+          </div>
+        ) : focusTerm ? (
+          <div className={`focus-toggle ${isFocusActive ? 'active' : 'inactive'}`}>
+            <button className="focus-pill" onClick={handleFocusToggle} title={isFocusActive ? 'Изключи фокус' : 'Включи фокус'}>
+              <span className="focus-icon">&#9678;</span>
+              <span className="focus-label">{focusTerm}</span>
+            </button>
+            <button className="focus-action-btn" onClick={handleFocusEdit} title="Промени">&#9998;</button>
+            <button className="focus-action-btn" onClick={handleFocusClear} title="Изтрий">&times;</button>
+          </div>
+        ) : (
+          <button className="focus-toggle-empty" onClick={handleFocusToggle} title="Задай фокус филтър">
+            <span className="focus-icon">&#9678;</span>
+          </button>
+        )}
       </div>
 
       <div className="filter-container">

@@ -180,6 +180,160 @@
   color: #aaa;
 }
 
+/* Focus filter */
+.focus-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.focus-toggle .focus-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.focus-toggle.active .focus-pill {
+  background: #06b6d4;
+  color: white;
+  border-color: #06b6d4;
+}
+
+.focus-toggle.inactive .focus-pill {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.focus-toggle.inactive .focus-pill:hover {
+  border-color: #06b6d4;
+  color: #0e7490;
+}
+
+.focus-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.focus-label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.focus-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.focus-action-btn:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.focus-toggle-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 2px dashed #cbd5e1;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 20px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.focus-toggle-empty:hover {
+  border-color: #06b6d4;
+  color: #06b6d4;
+}
+
+.focus-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.focus-edit-input {
+  width: 140px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 2px solid #06b6d4;
+  border-radius: 8px;
+  outline: none;
+  background: white;
+}
+
+.focus-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.focus-edit-btn.save {
+  background: #06b6d4;
+  color: white;
+}
+
+.focus-edit-btn.save:hover {
+  background: #0891b2;
+}
+
+.focus-edit-btn.cancel {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.focus-edit-btn.cancel:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+@media (max-width: 480px) {
+  .search-container {
+    flex-wrap: wrap;
+  }
+  .focus-edit {
+    width: 100%;
+  }
+  .focus-edit-input {
+    flex: 1;
+  }
+}
+
 .filter-container {
   display: flex;
   flex-direction: column;
