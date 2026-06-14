@@ -494,9 +494,33 @@ class ActiveChannelFetcher:
             response = validation.get("response", "")
             red_flags = validation.get("red_flags", [])
 
-            has_year_mismatch = any("year mismatch" in rf.lower() for rf in red_flags)
+            # Check for year-related issues
+            has_year_issue = any("year" in rf.lower() for rf in red_flags)
 
-            if not matched or (confidence == "medium" and has_year_mismatch):
+            # Check if it's a 1-year mismatch (production vs release year)
+            is_one_year_off = False
+            for rf in red_flags:
+                if "year mismatch" in rf.lower():
+                    # Extract years from "Year mismatch: TV shows YYYY, database shows YYYY"
+                    import re
+                    years = re.findall(r'\b(19|20)\d{2}\b', rf)
+                    if len(years) == 2:
+                        year_diff = abs(int(years[0]) - int(years[1]))
+                        if year_diff == 1:
+                            is_one_year_off = True
+                            break
+
+            # Skip year validation for Cinemax channels (they have only movies, no descriptions with years)
+            channel_id = match.get("channel_id", "")
+            skip_year_check = channel_id in ("cinemax", "cinemax-2") or is_one_year_off
+
+            # Override AI verdict when the only issue is missing year on a skip-year channel
+            only_year_issue = has_year_issue and not matched and len(red_flags) == 1
+            if skip_year_check and only_year_issue:
+                matched = True
+                confidence = "medium"
+
+            if not matched or (confidence == "medium" and has_year_issue and not skip_year_check):
                 false_positives.append({
                     "match": match,
                     "validation": validation
