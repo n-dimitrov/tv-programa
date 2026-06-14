@@ -60,7 +60,7 @@ ARCHIVE_GCS="gs://${BUCKET_NAME}/data/archive/${ZIP_NAME}"
 echo ""
 
 # Check if archive already exists
-if gsutil -q stat "$ARCHIVE_GCS" 2>/dev/null; then
+if gcloud storage ls "$ARCHIVE_GCS" >/dev/null 2>&1; then
     read -p "Archive $ZIP_NAME already exists in GCS. Overwrite? [y/N]: " OVERWRITE
     if [[ ! "$OVERWRITE" =~ ^[Yy]$ ]]; then
         echo "Aborted."
@@ -70,7 +70,7 @@ fi
 
 # List matching files in GCS
 echo "Looking for files in gs://${BUCKET_NAME}/data/programs/${MONTH_PREFIX}*.json ..."
-FILES=$(gsutil ls "gs://${BUCKET_NAME}/data/programs/${MONTH_PREFIX}*.json" 2>/dev/null || true)
+FILES=$(gcloud storage ls "gs://${BUCKET_NAME}/data/programs/${MONTH_PREFIX}*.json" 2>/dev/null || true)
 
 if [ -z "$FILES" ]; then
     echo "No files found for ${YEAR}-${MONTH_PAD}. Nothing to archive."
@@ -98,7 +98,7 @@ echo ""
 # Download files to temp dir
 TMP_DIR=$(mktemp -d)
 echo "Downloading $FILE_COUNT files to temp dir..."
-gsutil -m cp "gs://${BUCKET_NAME}/data/programs/${MONTH_PREFIX}*.json" "$TMP_DIR/"
+gcloud storage cp "gs://${BUCKET_NAME}/data/programs/${MONTH_PREFIX}*.json" "$TMP_DIR/"
 
 # Create zip
 TMP_ZIP="${TMP_DIR}/${ZIP_NAME}"
@@ -110,7 +110,7 @@ echo "Zip created: $ZIP_SIZE"
 
 # Upload zip to GCS
 echo "Uploading to $ARCHIVE_GCS ..."
-gsutil cp "$TMP_ZIP" "$ARCHIVE_GCS"
+gcloud storage cp "$TMP_ZIP" "$ARCHIVE_GCS"
 echo "Archive uploaded."
 
 # Cleanup temp
@@ -122,7 +122,7 @@ echo ""
 read -p "Delete original daily files from GCS data/programs/? [y/N]: " DELETE
 if [[ "$DELETE" =~ ^[Yy]$ ]]; then
     echo "Deleting $FILE_COUNT files from GCS..."
-    echo "$FILES" | xargs gsutil -m rm
+    echo "$FILES" | xargs gcloud storage rm
     echo "$FILE_COUNT files removed from data/programs/."
 else
     echo "Original files kept in data/programs/."
