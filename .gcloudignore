@@ -19,3 +19,5 @@ docs/
 .github/
 .vscode/
 .idea/
+.deepscan/
+
